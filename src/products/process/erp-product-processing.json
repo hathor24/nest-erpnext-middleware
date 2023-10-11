@@ -1,0 +1,9 @@
+{
+    "item_name": "name",
+    "item_code": "productNumber",
+    "breite": "width",
+    "modified": "customFields.br_pim_modified",
+    "shop_list[0].beschreibung": "description",
+    "name": "packUnitPlural"
+}
+

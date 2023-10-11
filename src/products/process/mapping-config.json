@@ -1,0 +1,6 @@
+{
+    "write-product": {
+        "name": "name",
+        "price": "price.gross" 
+    }
+}
