@@ -1,9 +1,14 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import { ShopsService } from '../shops/shops.service';
+// import axios from 'axios';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly shopsService: ShopsService,
+  ) {}
 
   @Get('/erp')
   async getProductsFromErp() {
@@ -25,34 +30,78 @@ export class ProductsController {
     return shopsProduct;
   }
 
-  @Post('/sync/:productNumber')
-  async syncProductToShops(@Param('productNumber') productNumber: string) {
-    const syncedShopsProduct =
-      await this.productsService.syncProductToShops(productNumber);
-    return syncedShopsProduct;
-  }
-  @Get('/sync/all')
-  async syncAllModifiedProducts() {
+  // @Post('/sync/:productNumber')
+  // async syncProductToShops(@Param('productNumber') productNumber: string) {
+  //   const syncedShopsProduct =
+  //     await this.productsService.syncProductToShops(productNumber);
+  //   return syncedShopsProduct;
+  // }
+  // @Get('/sync/all')
+  // async syncAllModifiedProducts() {
+  //   try {
+  //     const modifiedProducts: any =
+  //       await this.productsService.getModifiedProducts();
+  //     // console.log(modifiedProducts);
+
+  //     const syncedProducts = [];
+  //     for (const product of modifiedProducts) {
+  //       const syncedProduct = await this.productsService.syncProductToShops(
+  //         product.name,
+  //       );
+
+  //       syncedProducts.push(syncedProduct);
+  //     }
+  //     // console.log('start', syncedProducts, 'end');
+  //     return syncedProducts;
+  //   } catch (error) {
+  //     // console.log(error.response.data);
+  //     throw error;
+  //   }
+  // }
+  @Get('/sync/shop/:shopId')
+  async syncShop(@Param('shopId') shopId: string) {
     try {
-      // Schritt 1: Rufen Sie alle Produkte mit geänderten modified aus dem ERP-System ab
-      const modifiedProducts: any =
-        await this.productsService.getModifiedProducts();
-
-      // Schritt 2: Iterieren Sie über die geänderten Produkte und synchronisieren Sie sie mit dem Shop
-      const syncedProducts = [];
-      for (const product of modifiedProducts) {
-        const syncedProduct = await this.productsService.syncProductToShops(
-          product.name,
-        );
-
-        syncedProducts.push(syncedProduct);
-      }
-      // Schritt 3: Geben Sie die synchronisierten Produkte zurück
-      return syncedProducts;
+      const syncedShop = await this.productsService.syncShop(shopId);
+      return syncedShop;
     } catch (error) {
-      // console.log(error);
-      // Fehlerbehandlung hier
       throw error;
     }
   }
+  // @Get('/option/:productNumber')
+  // async getOptionListUuids(@Param('productNumber') productNumber: string) {
+  //   const token = await this.shopsService.getShopBearerToken(
+  //     'http://localhost:8000',
+  //     'SWIACE8YUEZWODZPN3PXWTJPCQ',
+  //     'dWNpcUFvekN1c3hIN2YzbXZ0ekhMclR1Q0lRa3pWTWJGdnBLODM',
+  //   );
+
+  //   const shopApiClient = axios.create({
+  //     baseURL: 'http://localhost:8000',
+  //     headers: {
+  //       Accept: 'application/json',
+  //       'Content-Type': 'application/json',
+  //       Authorization: `Bearer ${token}`,
+  //     },
+  //   });
+  //   const productOptions = await this.productsService.getOptionListUuids(
+  //     productNumber,
+  //     shopApiClient,
+  //   );
+
+  //   return productOptions;
+  // }
+  // @Get('/salesChannelInfo/:productNumber')
+  // async getSalesChannelInfo(@Param('productNumber') productNumber: string) {
+  //   const salesChannelInfo =
+  //     await this.productsService.getSalesChannelInfo(productNumber);
+
+  //   return salesChannelInfo;
+  // }
+  // @Get('/taxInfo/:productNumber')
+  // async getStandardTaxInfo(@Param('productNumber') productNumber: string) {
+  //   const taxInfo =
+  //     await this.productsService.getStandardTaxInfo(productNumber);
+
+  //   return taxInfo;
+  // }
 }
