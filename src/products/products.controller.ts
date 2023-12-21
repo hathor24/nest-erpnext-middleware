@@ -1,6 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { ShopsService } from '../shops/shops.service';
+// import shopApiClient from 'src/api/shop-api-client';
 // import axios from 'axios';
 
 @Controller('products')
@@ -19,7 +20,9 @@ export class ProductsController {
   @Get('/erp/:productNumber')
   async getProductFromERP(@Param('productNumber') productNumber: string) {
     const erpProduct =
-      await this.productsService.getProductFromErp(productNumber);
+      await this.productsService.getProductByProductNumberFromErp(
+        productNumber,
+      );
     return erpProduct;
   }
 
@@ -104,4 +107,33 @@ export class ProductsController {
 
   //   return taxInfo;
   // }
+  @Get('/configurator/:productNumber')
+  async getProductConfiguratorSetting(
+    @Param('productNumber') productNumber: string,
+    optionId = '018c67ed38e37356af776bf93f1c53e8',
+    erpShopId = 'cdd52b1a8b',
+  ) {
+    // console.log(productNumber, optionId, erpShopId);
+    const configuratorId =
+      await this.productsService.getProductConfiguratorSetting(
+        productNumber,
+        optionId,
+        erpShopId,
+      );
+
+    return configuratorId;
+  }
+  @Get('/parent/:productId')
+  async getParentProductById(
+    @Param('productId') productId: string,
+    erpShopId = 'cdd52b1a8b',
+  ) {
+    // console.log(productId, erpShopId);
+    const parentProduct = await this.productsService.getParentProductById(
+      productId,
+      erpShopId,
+    );
+
+    return parentProduct;
+  }
 }
