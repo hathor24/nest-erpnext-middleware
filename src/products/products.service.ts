@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import erpApiClient from '../api/erp-api-client';
 // import { ShopsService } from '../shops/shops.service';
 import axios, { AxiosInstance } from 'axios';
+import { ManufacturersService } from '../manufacturers/manufacturers.service';
 
 // import * as _ from 'lodash';
 //TODO:
@@ -26,16 +27,9 @@ interface PropertyValue {
 
 @Injectable()
 export class ProductsService {
-  // constructor(private readonly shopsService: ShopsService) {}
+  constructor(private readonly manufacturersService: ManufacturersService) {}
 
-  /**
-   *
-   * @param shopApiClient
-   * @param processedErpProduct
-   *
-   * sync of all shops executed in controller
-   */
-  public async syncShop(erpShopId: any) {
+  public async syncShopById(erpShopId: any) {
     try {
       const shopApiClient = await this.createShopApiClientByShopId(erpShopId);
 
@@ -115,7 +109,6 @@ export class ProductsService {
 
       return syncedShop;
     } catch (error) {
-
       throw error;
     }
   }
@@ -254,46 +247,6 @@ export class ProductsService {
       throw error;
     }
   }
-  public async getAllManufacturers(shopApiClient: any) {
-    try {
-      const response = await shopApiClient.get(`/api/product-manufacturer`);
-
-      const allManufacturers = await response.data;
-
-      return allManufacturers;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async getManufacturerById(manufacturerId: string, shopApiClient: any) {
-    const response = await shopApiClient.get(
-      `/api/product-manufacturer/${manufacturerId}`,
-    );
-    const manufacturer = await response.data;
-
-    return manufacturer;
-  }
-
-  public async deleteManufacturer(manufacturerId: string, shopApiClient: any) {
-    const response = await shopApiClient.delete(
-      `/api/product-manufacturer/${manufacturerId}`,
-    );
-    const deletedManufacturer = response.data;
-
-    return deletedManufacturer;
-  }
-  public async createManufacturer(
-    manufacturerName: string,
-    shopApiClient: any,
-  ) {
-    const response = await shopApiClient.post('/api/product-manufacturer', {
-      name: manufacturerName,
-    });
-    const createdManufacturer = response.data;
-
-    return createdManufacturer;
-  }
 
   public async processBulkData(payload: any, action: string) {
     if (action === 'upsert') {
@@ -425,7 +378,7 @@ export class ProductsService {
 
               stock: modifiedProduct.anzahl,
               active: modifiedProduct.active == 0 ? false : true,
-              // manufacturer: 'TEASTDSF-Variante',
+              manufacturer: null,
 
               weight: modifiedProduct.gewicht,
               price: [
@@ -449,14 +402,44 @@ export class ProductsService {
         }
       };
 
-      // console.log('ttt', tempChild);
+      const manufacturerId = async (shopApiClient) => {
+        let manufacturerId: string = '';
+        const manufacturerName = modifiedProduct.hersteller;
+        const allManufacturersData =
+          await this.manufacturersService.getShopManufacturers(shopApiClient);
+        const manufacturerData = allManufacturersData.find(
+          (obj) => obj.name === manufacturerName,
+        );
+        if (manufacturerData) {
+          manufacturerId = manufacturerData.id;
+        } else {
+          const createdManufacturer =
+            await this.manufacturersService.createManufacturer(
+              manufacturerName,
+              shopApiClient,
+            );
+          manufacturerId = createdManufacturer.id;
+        }
+        // console.log(
+        //   'Test',
+        //   manufacturerId,
+        //   manufacturerName,
+        //   allManufacturersData,
+        // );
+        return manufacturerId;
+      };
 
       const processedErpProduct: any = {
         productNumber: mainArticle.item_code,
         name: mainArticle.item_name,
+
         active: mainArticle.active == 0 ? false : true,
-        // manufacturer: [{ geg: 'TEASTDSF-MAIN' }],
-        // manufacturer: modifiedProduct.hersteller, //TODO: check if manufacturer exists. eigentlich nur id
+        // manufacturerId: await manufacturerId(),
+
+        manufacturer: {
+          id: await manufacturerId(shopApiClient),
+          // id: '018cca69d31570c7a4bc0e88c0e3d6cb',
+        },
         manufacturerNumber: mainArticle.herstellernummer,
         ean: mainArticle.ean,
         stock: mainArticle.anzahl,
@@ -503,9 +486,12 @@ export class ProductsService {
       } else {
         processedErpProduct.id = parentUuid;
       }
+
+      console.log(processedErpProduct);
       return processedErpProduct;
     } catch (error) {
-      console.log(error.response.error);
+      console.log(error.response.data.errors[0]);
+
       throw error;
     }
   }
@@ -674,7 +660,6 @@ export class ProductsService {
       );
 
       const shopProduct = await response.data.data;
-      // console.log(shopProduct);
       return shopProduct[0];
     } catch (error) {
       throw error;
@@ -869,7 +854,6 @@ export class ProductsService {
           modifiedProducts.push(erpProductComplete);
         }
       }
-      // console.log('MODIFIED', modifiedProducts);
 
       return modifiedProducts;
     } catch (error) {
@@ -905,7 +889,6 @@ export class ProductsService {
       const deletedProducts = shopProducts.filter((obj1) =>
         unassignedProducts.some((obj2) => isDeleted(obj1, obj2)),
       );
-      // console.log('DELETE', deletedProducts);
       return deletedProducts;
     } catch (error) {
       throw error;
@@ -938,7 +921,6 @@ export class ProductsService {
         }
       }
     } catch (error) {
-      // console.log(error);
       throw error;
     }
   }

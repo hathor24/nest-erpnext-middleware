@@ -1,14 +1,14 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { ShopsService } from '../shops/shops.service';
+// import { ShopsService } from '../shops/shops.service';
+// import { ManufacturersService } from '../manufacturers/manufacturers.service';
 // import shopApiClient from 'src/api/shop-api-client';
 // import axios from 'axios';
 
 @Controller('products')
 export class ProductsController {
   constructor(
-    private readonly productsService: ProductsService,
-    private readonly shopsService: ShopsService,
+    private readonly productsService: ProductsService, // private readonly manufacturersService: ManufacturersService,
   ) {}
 
   @Get('/erp')
@@ -64,7 +64,7 @@ export class ProductsController {
   @Get('/sync/shop/:shopId')
   async syncShop(@Param('shopId') shopId: string) {
     try {
-      const syncedShop = await this.productsService.syncShop(shopId);
+      const syncedShop = await this.productsService.syncShopById(shopId);
       return syncedShop;
     } catch (error) {
       throw error;
