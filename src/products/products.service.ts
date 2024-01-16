@@ -4,229 +4,25 @@ import erpApiClient from '../api/erp-api-client';
 // import { ShopsService } from '../shops/shops.service';
 import axios, { AxiosInstance } from 'axios';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
+import { PropertiesService } from '../properties/properties.service';
+import { UnitsService } from '../units/units.service';
 
-// import * as _ from 'lodash';
 //TODO:
+//1. Media und Tags
 //2. mehr Produkteigenschaften mappen
 //3. mehrere alle Shops syncen
-interface ShopApiClient {
-  get(path: string): Promise<any>;
-  post(path: string, data: any): Promise<any>;
-}
-
-interface PropertyGroup {
-  id: string;
-  name: string;
-}
-
-interface PropertyValue {
-  id: string;
-  name: string;
-  groupId: string;
-}
+// interface ShopApiClient {
+//   get(path: string): Promise<any>;
+//   post(path: string, data: any): Promise<any>;
+// }
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly manufacturersService: ManufacturersService) {}
-
-  public async syncShopById(erpShopId: any) {
-    try {
-      const shopApiClient = await this.createShopApiClientByShopId(erpShopId);
-
-      const processedProducts = await this.createProductsBulk(
-        erpShopId,
-        shopApiClient,
-      );
-      const deletedShopProduct = await this.createDeletedProductsBulk(
-        erpShopId,
-        shopApiClient,
-      );
-      const syncedShop: any[] = [];
-
-      const upsertPayload = {
-        'write-products': {
-          entity: 'product',
-          action: 'upsert',
-          payload: [...processedProducts],
-        },
-      };
-
-      const deletePayload = {
-        'delete-products': {
-          entity: 'product',
-          action: 'delete',
-          payload: [...deletedShopProduct],
-        },
-      };
-
-      if (upsertPayload['write-products'].payload.length != 0) {
-        const modShopProductResponse = await shopApiClient.post(
-          '/api/_action/sync',
-          upsertPayload,
-        );
-        const modShopProduct = modShopProductResponse.data;
-
-        syncedShop.push(modShopProduct);
-      }
-      const deletedProductIds = deletePayload['delete-products'].payload;
-      const delParentProductList = [];
-      for (const deletedProductId of deletedProductIds) {
-        const productParent = await this.getParentProductById(
-          deletedProductId.id,
-          shopApiClient,
-        );
-        delParentProductList.push(productParent);
-      }
-
-      if (deletePayload['delete-products'].payload.length != 0) {
-        const delShopProductResponse = await shopApiClient.post(
-          '/api/_action/sync',
-          deletePayload,
-        );
-        const delShopProduct = delShopProductResponse.data;
-        syncedShop.push(delShopProduct);
-
-        const deletedOptions = syncedShop[0].deleted.product_option;
-        let productParent = '';
-        for (const deletedOption of deletedOptions) {
-          for (const delParentProduct of delParentProductList) {
-            if (delParentProduct.id == deletedOption.productId) {
-              productParent = delParentProduct.parentId;
-            }
-          }
-
-          const configuratorId = await this.getProductConfiguratorSetting(
-            productParent,
-            deletedOption.optionId,
-            erpShopId,
-          );
-
-          await shopApiClient.delete(
-            `/api/product-configurator-setting/${configuratorId}`,
-          );
-        }
-      }
-
-      return syncedShop;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  // public async syncProductToShop(
-  //   productNumber: string,
-  //   shopApiClient: any,
-  // ): Promise<any[]> {
-  //   const erpProduct = await this.getProductByProductNumberFromErp(productNumber);
-
-  //   const shopProductResponse = await shopApiClient.get(
-  //     `/api/product?filter[productNumber]=${productNumber}`,
-  //   );
-
-  //   const shopProducts = shopProductResponse.data.data;
-
-  //   const processedShopProduct = await this.processErpProduct(
-  //     shopApiClient,
-  //     erpProduct,
-  //     shopProducts[0] ? shopProducts[0] : null,
-  //     //modifiedProducts?
-  //   );
-
-  //   const upsertPayload = {
-  //     write: {
-  //       entity: 'product',
-  //       action: 'upsert',
-  //       payload: [
-  //         {
-  //           ...processedShopProduct,
-  //         },
-  //       ],
-  //       criteria: ['write-product'],
-  //     },
-  //   };
-  // }
-
-  // public async syncProductToShops(productNumber: string): Promise<any[]> {
-  //   try {
-  //     const erpProduct = await this.getProductByProductNumberFromErp(productNumber);
-  //     const productShopList = erpProduct.shop_list;
-  //     const syncedShopsProduct: any[] = [];
-
-  //     for (const shop of productShopList) {
-  //       const erpShopId = shop.shop;
-  //       const shopApiClient =
-  //         await this.shopsService.createShopApiClientByShopId(erpShopId);
-
-  //       const shopProductResponse = await shopApiClient.get(
-  //         `/api/product?filter[productNumber]=${productNumber}`,
-  //       );
-
-  //       const shopProducts = shopProductResponse.data.data;
-
-  //       const processedShopProduct = await this.processErpProduct(
-  //         erpShopId,
-  //         shopApiClient,
-  //         erpProduct,
-  //       );
-
-  //       const deletedShopProduct = await this.deleteErpProduct(
-  //         erpShopId,
-  //         shopApiClient,
-  //         erpProduct,
-  //       );
-
-  //       const upsertPayload = {
-  //         write: {
-  //           entity: 'product',
-  //           action: 'upsert',
-  //           payload: [
-  //             {
-  //               ...processedShopProduct,
-  //             },
-  //           ],
-  //           criteria: ['write-product'],
-  //         },
-  //       };
-
-  //       const deletePayload = {
-  //         delete: {
-  //           entity: 'product',
-  //           action: 'delete',
-  //           payload: [
-  //             {
-  //               ...deletedShopProduct,
-  //             },
-  //           ],
-  //         },
-  //       };
-
-  //       if (shopProducts && shopProducts.length > 0) {
-  //         const shopProductData = shopProducts[0];
-
-  //         upsertPayload.write.payload[0].id = shopProductData.id;
-  //       }
-
-  //       const modShopProductResponse = await shopApiClient.post(
-  //         '/api/_action/sync',
-  //         upsertPayload,
-  //       );
-
-  //       const delShopProductResponse = await shopApiClient.post(
-  //         '/api/_action/sync',
-  //         deletePayload,
-  //       );
-
-  //       const modShopProduct = modShopProductResponse.data;
-
-  //       syncedShopsProduct.push(modShopProduct);
-  //     }
-
-  //     return syncedShopsProduct;
-  //   } catch (error) {
-  //     // console.log(error);
-  //     throw error;
-  //   }
-  // }
+  constructor(
+    private readonly manufacturersService: ManufacturersService,
+    private readonly propertiesService: PropertiesService,
+    private readonly unitsService: UnitsService,
+  ) {}
 
   public async getParentProductById(productId: string, shopApiClient: any) {
     const responseProduct = await shopApiClient.get(
@@ -291,36 +87,73 @@ export class ProductsService {
       //   modifiedProduct.rabattfrei,
       // ];
 
+      // const shopPrice = (type: string) => {
+      //   const shops = type === 'main' ? mainArticle : modifiedProduct;
+
+      //   for (const shop of shops.custom_assigned_shops) {
+      //     if (shop.shop === erpShopId) {
+      //       return shop.product_price || shops.price;
+      //     }
+      //   }
+      // };
+
+      // const shopDesc = (type: string) => {
+      //   const shops = type === 'main' ? mainArticle : modifiedProduct;
+
+      //   for (const shop of shops.custom_assigned_shops) {
+      //     if (shop.shop === erpShopId) {
+      //       return shop.product_description || shops.description;
+      //     }
+      //   }
+      // };
+
       const shopPrice = (type: string) => {
         if (type == 'main') {
-          for (const shop of mainArticle.shop_list) {
+          for (const shop of mainArticle.custom_assigned_shops) {
             if (shop.shop === erpShopId) {
-              return shop.preis;
+              if (shop.product_price) {
+                return shop.product_price;
+              } else {
+                return mainArticle.custom_price;
+              }
             }
           }
         } else if (type == 'child') {
-          for (const shop of modifiedProduct.shop_list) {
+          for (const shop of modifiedProduct.custom_assigned_shops) {
             if (shop.shop === erpShopId) {
-              return shop.preis;
+              if (shop.product_price) {
+                return shop.product_price;
+              } else {
+                return modifiedProduct.custom_price;
+              }
             }
           }
         }
       };
       const shopDesc = (type: string) => {
         if (type == 'main') {
-          for (const shop of mainArticle.shop_list) {
+          for (const shop of mainArticle.custom_assigned_shops) {
             if (shop.shop === erpShopId) {
-              return shop.beschreibung;
+              if (shop.product_description) {
+                return shop.product_description;
+              } else {
+                return mainArticle.description;
+              }
             }
           }
         } else if (type == 'child') {
-          for (const shop of modifiedProduct.shop_list) {
+          for (const shop of modifiedProduct.custom_assigned_shops) {
             if (shop.shop === erpShopId) {
-              return shop.beschreibung;
+              if (shop.product_description) {
+                return shop.product_description;
+              } else {
+                return modifiedProduct.description;
+              }
             }
           }
         }
       };
+
       const parentUuid = modifiedProduct.variant_of
         ? await this.getUuidByProductNumber(
             modifiedProduct.variant_of,
@@ -346,6 +179,7 @@ export class ProductsService {
           return null;
         }
       };
+
       const configuratorSettings = async () => {
         const childrenResponse = await children(shopApiClient);
         if (!childrenResponse || childrenResponse[0].id) {
@@ -374,13 +208,6 @@ export class ProductsService {
                 modifiedProduct.item_code,
                 shopApiClient,
               ),
-              productNumber: modifiedProduct.item_code,
-
-              stock: modifiedProduct.anzahl,
-              active: modifiedProduct.active == 0 ? false : true,
-              manufacturer: null,
-
-              weight: modifiedProduct.gewicht,
               price: [
                 {
                   currencyId: salesChannelInfo.currencyId,
@@ -389,11 +216,34 @@ export class ProductsService {
                   linked: true,
                 },
               ],
+              productNumber: modifiedProduct.item_code,
+              active: modifiedProduct.custom_active == 0 ? false : true,
+              purchaseUnit:
+                modifiedProduct.custom_purchase_unit !== 0
+                  ? modifiedProduct.custom_purchase_unit
+                  : null,
+              weight:
+                modifiedProduct.custom_weight !== 0
+                  ? modifiedProduct.custom_weight
+                  : null,
+              width:
+                modifiedProduct.custom_width !== 0
+                  ? modifiedProduct.custom_width
+                  : null,
+              height:
+                modifiedProduct.custom_height !== 0
+                  ? modifiedProduct.custom_height
+                  : null,
+              length:
+                modifiedProduct.custom_length !== 0
+                  ? modifiedProduct.custom_length
+                  : null,
               options: options,
               description: shopDesc('child'),
               customFields: {
                 br_pim_modified: modifiedProduct.modified,
               },
+              stock: modifiedProduct.custom_stock,
             },
           ];
           return child;
@@ -402,60 +252,136 @@ export class ProductsService {
         }
       };
 
-      const manufacturerId = async (shopApiClient) => {
-        let manufacturerId: string = '';
-        const manufacturerName = modifiedProduct.hersteller;
+      const manufacturer: any = async (shopApiClient) => {
+        let manufacturer: any = null;
+        const manufacturerName = mainArticle.brand; //TODO: parent Herstellername
         const allManufacturersData =
           await this.manufacturersService.getShopManufacturers(shopApiClient);
         const manufacturerData = allManufacturersData.find(
           (obj) => obj.name === manufacturerName,
         );
         if (manufacturerData) {
-          manufacturerId = manufacturerData.id;
+          manufacturer = manufacturerData;
         } else {
           const createdManufacturer =
-            await this.manufacturersService.createManufacturer(
+            await this.manufacturersService.createShopManufacturer(
               manufacturerName,
               shopApiClient,
             );
-          manufacturerId = createdManufacturer.id;
+          manufacturer = createdManufacturer;
         }
-        // console.log(
-        //   'Test',
-        //   manufacturerId,
-        //   manufacturerName,
-        //   allManufacturersData,
-        // );
-        return manufacturerId;
+        return manufacturer;
+      };
+      const unit: any = async (shopApiClient) => {
+        let unit: any = null;
+        const unitName = mainArticle.stock_uom;
+        const pimUnitData =
+          await this.unitsService.getPimUnitDataByUnitName(unitName);
+        let unitShortCode = null;
+        if (!pimUnitData.custom_uom_short_code) {
+          unitShortCode = 'NA';
+        } else {
+          unitShortCode = pimUnitData.custom_uom_short_code;
+        }
+
+        const allUnitsData =
+          await this.unitsService.getShopUnits(shopApiClient);
+        const unitData = allUnitsData.find((obj) => obj.name === unitName);
+        if (unitData) {
+          unit = unitData;
+        } else {
+          const createdUnit = await this.unitsService.createShopUnit(
+            unitShortCode,
+            unitName,
+            shopApiClient,
+          );
+          unit = createdUnit;
+        }
+        return unit;
+      };
+
+      const properties: any = async (shopApiClient) => {
+        const shopProductPropertyList: any = [];
+        // const shopPropertyOption: any = { name: null, groupId: null };
+        const pimProductPropertiesAssignments: any =
+          mainArticle.custom_properties;
+        for (const pimProductPropertyAssignment of pimProductPropertiesAssignments) {
+          const propertyData =
+            await this.propertiesService.getShopPropertyGroupByName(
+              shopApiClient,
+              pimProductPropertyAssignment.property,
+            );
+
+          if (propertyData !== null) {
+            const propertyValueData =
+              await this.propertiesService.getShopPropertyGroupOptionByName(
+                shopApiClient,
+                pimProductPropertyAssignment.property_value,
+                propertyData.id,
+              );
+
+            if (propertyValueData !== null) {
+              const shopPropertyOption = {
+                id: propertyValueData.id,
+                name: propertyValueData.name,
+                groupId: propertyValueData.groupId,
+              };
+              shopProductPropertyList.push(shopPropertyOption);
+              continue;
+            } else {
+              const createdPropertyGroupOption =
+                await this.propertiesService.createShopPropertyGroupOptionByGroupId(
+                  shopApiClient,
+                  pimProductPropertyAssignment.property_value,
+                  propertyData.id,
+                );
+              const shopPropertyOption = {
+                id: createdPropertyGroupOption.id,
+                name: createdPropertyGroupOption.name,
+                groupId: createdPropertyGroupOption.groupId,
+              };
+              shopProductPropertyList.push(shopPropertyOption);
+              continue;
+            }
+          } else {
+            const createdPropertyGroup =
+              await this.propertiesService.createShopPropertyGroup(
+                pimProductPropertyAssignment.property,
+                shopApiClient,
+              );
+
+            const createdPropertyGroupOption =
+              await this.propertiesService.createShopPropertyGroupOptionByGroupId(
+                shopApiClient,
+                pimProductPropertyAssignment.property_value,
+                createdPropertyGroup.id,
+              );
+
+            const shopPropertyOption = {
+              id: createdPropertyGroupOption.id,
+              name: createdPropertyGroupOption.name,
+              groupId: createdPropertyGroup.id,
+            };
+            shopProductPropertyList.push(shopPropertyOption);
+            continue;
+          }
+        }
+        return shopProductPropertyList;
       };
 
       const processedErpProduct: any = {
-        productNumber: mainArticle.item_code,
-        name: mainArticle.item_name,
+        ////////////////
+        // ATTRIBUTES //
+        ////////////////
 
-        active: mainArticle.active == 0 ? false : true,
-        // manufacturerId: await manufacturerId(),
-
-        manufacturer: {
-          id: await manufacturerId(shopApiClient),
-          // id: '018cca69d31570c7a4bc0e88c0e3d6cb',
-        },
-        manufacturerNumber: mainArticle.herstellernummer,
-        ean: mainArticle.ean,
-        stock: mainArticle.anzahl,
-        // unit: modifiedProduct.stock_uom, //TODO: check if unit exists. eigentlich nur id
-        packUnit: mainArticle.verpackungseinheit,
-        packUnitPlural: mainArticle.verpackungseinheit_mehrzahl,
-        weight: mainArticle.gewicht,
-        width: mainArticle.breite,
-        height: mainArticle.höhe,
-        length: mainArticle.länge,
-        // tags: tags,
+        // parentId
+        manufacturerId: (await manufacturer(shopApiClient)).id,
+        unitId: (await unit(shopApiClient)).id,
         taxId: await this.getStandardTaxInfo(
           mainArticle.item_code,
           shopApiClient,
         ),
-        // shop: modifiedProduct.shop_list[0].shop,
+        // coverId
         price: [
           {
             currencyId: salesChannelInfo.currencyId,
@@ -464,19 +390,40 @@ export class ProductsService {
             linked: true,
           },
         ],
-        // options: options,
-        children: await children(shopApiClient),
-        configuratorSettings: await configuratorSettings(),
-        // configuratorSettings: (await children(shopApiClient))
-        //   ? null
-        //   : configuration(),
-        description: shopDesc('main'),
+        productNumber: mainArticle.item_code,
+        active: mainArticle.custom_active == 0 ? false : true,
+        manufacturerNumber: mainArticle.custom_manufacturer_number,
+        ean: mainArticle.custom_ean,
+        purchaseUnit: mainArticle.custom_purchase_unit,
+        referenceUnit: mainArticle.custom_reference_unit,
+        markAsTopseller:
+          mainArticle.custom_mark_as_topseller == 0 ? false : true,
+        weight: mainArticle.custom_weight,
+        width: mainArticle.custom_width,
+        height: mainArticle.custom_height,
+        length: mainArticle.custom_length,
+        // metaDescription
+        name: mainArticle.item_name,
         keywords: mainArticle.keywords,
-        // cover: modifiedProduct.image,
-        // media: modifiedProduct.image + media,
+        description: shopDesc('main'),
+        // metaTitle
+        packUnit: mainArticle.custom_pack_unit,
+        packUnitPlural: mainArticle.custom_pack_unit_plural,
         customFields: {
           br_pim_modified: mainArticle.modified,
         },
+        availableStock: mainArticle.custom_stock,
+        stock: mainArticle.custom_stock,
+
+        ///////////////////
+        // RELATIONSHIPS //
+        ///////////////////
+
+        children: await children(shopApiClient),
+        // media
+        configuratorSettings: await configuratorSettings(),
+        properties: await properties(shopApiClient),
+        // tags
       };
       if (mainArticle.uuid !== null) {
         processedErpProduct.id = await this.getUuidByProductNumber(
@@ -487,11 +434,8 @@ export class ProductsService {
         processedErpProduct.id = parentUuid;
       }
 
-      console.log(processedErpProduct);
       return processedErpProduct;
     } catch (error) {
-      console.log(error.response.data.errors[0]);
-
       throw error;
     }
   }
@@ -510,6 +454,11 @@ export class ProductsService {
       );
       productsBulk.push(processedErpProduct);
     }
+    // productsBulk.forEach((product) => {
+    //   console.log(product);
+    // });
+    // throw new Error('test');
+
     return productsBulk;
   }
   public async createDeletedProductsBulk(
@@ -587,11 +536,12 @@ export class ProductsService {
     const result = [];
 
     for (const option of productOptions) {
-      const propertyValue = await this.getOrCreatePropertyGroupAndValue(
-        shopApiClient,
-        option.attribute,
-        option.attribute_value,
-      );
+      const propertyValue =
+        await this.propertiesService.getOrCreatePropertyGroupAndValue(
+          shopApiClient,
+          option.attribute,
+          option.attribute_value,
+        );
 
       result.push({
         id: propertyValue.id,
@@ -633,7 +583,7 @@ export class ProductsService {
         await this.getProductByProductNumberFromErp(productNumber);
       const shopsProduct = [];
 
-      const productShopList = erpProduct.shop_list;
+      const productShopList = erpProduct.custom_assigned_shops;
 
       for (const shop of productShopList) {
         const erpShopId = shop.shop;
@@ -664,111 +614,6 @@ export class ProductsService {
     } catch (error) {
       throw error;
     }
-  }
-
-  public async createPropertyGroup(
-    shopApiClient: any,
-    propertyGroupName: string,
-  ): Promise<any> {
-    const data = {
-      name: propertyGroupName,
-    };
-
-    const response = await shopApiClient.post('/api/property-group', data);
-    return response;
-  }
-
-  public async createPropertyValue(
-    shopApiClient: any,
-    propertyValueName: string,
-    propertyGroupId: string,
-  ): Promise<any> {
-    const data = {
-      name: propertyValueName,
-      groupId: propertyGroupId,
-    };
-
-    const response = await shopApiClient.post(
-      '/api/property-group-option',
-      data,
-    );
-    return response;
-  }
-
-  public async getOrCreatePropertyGroupAndValue(
-    shopApiClient: ShopApiClient,
-    propertyGroupName: string,
-    propertyValueName: string,
-  ): Promise<any> {
-    let propertyGroup = await this.getPropertyGroup(
-      shopApiClient,
-      propertyGroupName,
-    );
-
-    if (!propertyGroup) {
-      await this.createPropertyGroup(shopApiClient, propertyGroupName);
-      propertyGroup = await this.getPropertyGroup(
-        shopApiClient,
-        propertyGroupName,
-      );
-    }
-
-    let propertyValue = await this.getPropertyValue(
-      shopApiClient,
-      propertyValueName,
-      propertyGroup.id,
-    );
-
-    if (!propertyValue) {
-      await this.createPropertyValue(
-        shopApiClient,
-        propertyValueName,
-        propertyGroup.id,
-      );
-      propertyValue = await this.getPropertyValue(
-        shopApiClient,
-        propertyValueName,
-        propertyGroup.id,
-      );
-    }
-
-    return propertyValue;
-  }
-
-  public async getPropertyGroup(
-    shopApiClient: ShopApiClient,
-    propertyGroupName: string,
-  ): Promise<PropertyGroup | null> {
-    const response = await shopApiClient.get('/api/property-group');
-    const propertyGroups = response.data.data;
-
-    for (const propertyGroup of propertyGroups) {
-      if (propertyGroup.name === propertyGroupName) {
-        return propertyGroup;
-      }
-    }
-
-    return null;
-  }
-
-  public async getPropertyValue(
-    shopApiClient: ShopApiClient,
-    propertyValueName: string,
-    propertyGroupId: string,
-  ): Promise<PropertyValue | null> {
-    const response = await shopApiClient.get('/api/property-group-option');
-    const propertyValues = response.data.data;
-
-    for (const propertyValue of propertyValues) {
-      if (
-        propertyValue.name === propertyValueName &&
-        propertyValue.groupId === propertyGroupId
-      ) {
-        return propertyValue;
-      }
-    }
-
-    return null;
   }
 
   public async getEntity(
@@ -841,7 +686,7 @@ export class ProductsService {
         erpProductComplete.uuid =
           shopProduct.length !== 0 ? shopProduct[0].id : null;
 
-        const assignedShop = erpProductComplete.shop_list.some(
+        const assignedShop = erpProductComplete.custom_assigned_shops.some(
           (objekt) => objekt.shop === erpShopId,
         );
 
@@ -874,7 +719,7 @@ export class ProductsService {
         const erpProductComplete = await this.getProductByProductNumberFromErp(
           erpProduct.name,
         );
-        const assignedShop = erpProductComplete.shop_list.some(
+        const assignedShop = erpProductComplete.custom_assigned_shops.some(
           (objekt) => objekt.shop === erpShopId,
         );
         if (!assignedShop) {
@@ -901,7 +746,7 @@ export class ProductsService {
       const response = await shopApiClient.get(`/api/sales-channel`);
       const salesChannels = await response.data.data;
       for (const salesChannel of salesChannels) {
-        if (salesChannel.id === erpShopData.shopid) {
+        if (salesChannel.id === erpShopData.storefrontid) {
           return salesChannel;
         }
       }
@@ -989,7 +834,7 @@ export class ProductsService {
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
-      const response = await erpApiClient.get(`/Shop/${shopId}`);
+      const response = await erpApiClient.get(`/Item%20Shop/${shopId}`);
 
       const shopApiData = response.data.data;
       return shopApiData;
@@ -1000,7 +845,7 @@ export class ProductsService {
 
   async getShopsFromErp() {
     try {
-      const response = await erpApiClient.get('/Shop');
+      const response = await erpApiClient.get('/Item%20Shop');
       const erpShops = response.data;
       return erpShops;
     } catch (error) {
@@ -1010,7 +855,7 @@ export class ProductsService {
 
   async getShopFromErp(shopNumber: string) {
     try {
-      const response = await erpApiClient.get(`/Shop/${shopNumber}`);
+      const response = await erpApiClient.get(`/Item%20Shop/${shopNumber}`);
       const erpShop = response.data.data;
       return erpShop;
     } catch (error) {

@@ -61,15 +61,7 @@ export class ProductsController {
   //     throw error;
   //   }
   // }
-  @Get('/sync/shop/:shopId')
-  async syncShop(@Param('shopId') shopId: string) {
-    try {
-      const syncedShop = await this.productsService.syncShopById(shopId);
-      return syncedShop;
-    } catch (error) {
-      throw error;
-    }
-  }
+
   // @Get('/option/:productNumber')
   // async getOptionListUuids(@Param('productNumber') productNumber: string) {
   //   const token = await this.shopsService.getShopBearerToken(

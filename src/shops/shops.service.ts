@@ -68,7 +68,7 @@ export class ShopsService {
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
-      const response = await erpApiClient.get(`/Shop/${shopId}`);
+      const response = await erpApiClient.get(`/Item%20Shop/${shopId}`);
 
       const shopApiData = response.data.data;
       return shopApiData;
@@ -79,7 +79,7 @@ export class ShopsService {
 
   async getShopsFromErp() {
     try {
-      const response = await erpApiClient.get('/Shop');
+      const response = await erpApiClient.get('/Item%20Shop');
       const erpShops = response.data;
       return erpShops;
     } catch (error) {
@@ -89,7 +89,7 @@ export class ShopsService {
 
   async getShopFromErp(shopNumber: string) {
     try {
-      const response = await erpApiClient.get(`/Shop/${shopNumber}`);
+      const response = await erpApiClient.get(`/Item%20Shop/${shopNumber}`);
       const erpShop = response.data.data;
       return erpShop;
     } catch (error) {

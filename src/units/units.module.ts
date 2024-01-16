@@ -1,21 +1,22 @@
 import { Module } from '@nestjs/common';
-import { ProductsController } from './products.controller';
-import { ProductsService } from './products.service';
-import { ShopsService } from '../shops/shops.service';
+import { UnitsService } from './units.service';
+import { UnitsController } from './units.controller';
+import { GlobalVariableService } from '../global-variable/global-variable.service';
+import { ProductsService } from '../products/products.service';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { PropertiesService } from '../properties/properties.service';
 import { PropertiesModule } from '../properties/properties.module';
-import { UnitsService } from '../units/units.service';
+// import { GlobalVariableModule } from '../global-variable/global-variable.module';
 
 @Module({
-  controllers: [ProductsController],
   providers: [
+    UnitsService,
+    GlobalVariableService,
     ProductsService,
-    ShopsService,
     ManufacturersService,
     PropertiesService,
-    UnitsService,
   ],
+  controllers: [UnitsController],
   imports: [PropertiesModule], // Fügen Sie PropertiesModule zu den Imports hinzu
 })
-export class ProductsModule {}
+export class UnitsModule {}

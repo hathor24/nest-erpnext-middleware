@@ -16,7 +16,7 @@ export class ManufacturersController {
       await this.manufacturersService.getShopManufacturers(shopApiClient);
     return allManufacturers;
   }
-  @Get('/:manufacturerId')
+  @Get(':manufacturerId')
   async getShopManufacturerById(
     @Param('manufacturerId') manufacturerId: string,
   ) {
@@ -30,39 +30,41 @@ export class ManufacturersController {
     return manufacturer;
   }
   @Delete(':manufacturerId')
-  async deleteManufacturer(@Param('manufacturerId') manufacturerId: string) {
+  async deleteShopManufacturer(
+    @Param('manufacturerId') manufacturerId: string,
+  ) {
     const shopApiClient = await this.globalVariableService.shopApiClient;
     const deletedManufacturer =
-      await this.manufacturersService.deleteManufacturer(
+      await this.manufacturersService.deleteShopManufacturer(
         manufacturerId,
         shopApiClient,
       );
     return deletedManufacturer;
   }
   @Post(':manufacturerName')
-  async createManufacturer(
+  async createShopManufacturer(
     @Param('manufacturerName') manufacturerName: string,
   ) {
     const shopApiClient = await this.globalVariableService.shopApiClient;
     const createdManufacturer =
-      await this.manufacturersService.createManufacturer(
+      await this.manufacturersService.createShopManufacturer(
         manufacturerName,
         shopApiClient,
       );
     return createdManufacturer;
   }
-  @Patch('/:manufacturerId/:manufacturerName')
-  async updateManufacturer(
+  @Patch(':manufacturerId/:manufacturerName')
+  async updateShopManufacturer(
     @Param('manufacturerId') manufacturerId: string,
     @Param('manufacturerName') manufacturerName: string,
   ) {
     const shopApiClient = await this.globalVariableService.shopApiClient;
-    const createdManufacturer =
-      await this.manufacturersService.updateManufacturer(
+    const updatedManufacturer =
+      await this.manufacturersService.updateShopManufacturer(
         manufacturerId,
         manufacturerName,
         shopApiClient,
       );
-    return createdManufacturer;
+    return updatedManufacturer;
   }
 }

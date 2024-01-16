@@ -3,7 +3,7 @@ import axios from 'axios';
 const erpApiClient = axios.create({
   baseURL: 'http://192.168.8.57:8080/api/resource',
   headers: {
-    Authorization: 'token b8031d90ad28ffb:b6504285828c3d5',
+    Authorization: 'token 032e68d5be4edfc:207879a8be5f6e3',
     'Content-Type': 'application/json',
   },
 });

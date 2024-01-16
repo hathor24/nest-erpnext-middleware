@@ -26,7 +26,10 @@ export class ManufacturersService {
     return manufacturerData;
   }
 
-  public async deleteManufacturer(manufacturerId: string, shopApiClient: any) {
+  public async deleteShopManufacturer(
+    manufacturerId: string,
+    shopApiClient: any,
+  ) {
     const response = await shopApiClient.delete(
       `/api/product-manufacturer/${manufacturerId}`,
     );
@@ -35,13 +38,7 @@ export class ManufacturersService {
     return deletedManufacturer;
   }
 
-  /**
-   *
-   * @param manufacturerName  <
-   * @param shopApiClient
-   * @returns
-   */
-  public async createManufacturer(
+  public async createShopManufacturer(
     manufacturerName: string,
     shopApiClient: any,
   ) {
@@ -64,7 +61,7 @@ export class ManufacturersService {
     }
   }
 
-  public async updateManufacturer(
+  public async updateShopManufacturer(
     manufacturerId: string,
     manufacturerName: string,
     shopApiClient: any,
