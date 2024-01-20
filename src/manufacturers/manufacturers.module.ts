@@ -5,6 +5,9 @@ import { GlobalVariableService } from '../global-variable/global-variable.servic
 import { ProductsService } from '../products/products.service';
 import { PropertiesService } from '../properties/properties.service';
 import { UnitsService } from '../units/units.service';
+import { TagsService } from '../tags/tags.service';
+import { MediaService } from '../media/media.service';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   controllers: [ManufacturersController],
@@ -14,6 +17,9 @@ import { UnitsService } from '../units/units.service';
     ProductsService,
     PropertiesService,
     UnitsService,
+    TagsService,
+    // MediaService,
   ],
+  imports: [MediaModule],
 })
 export class ManufacturersModule {}

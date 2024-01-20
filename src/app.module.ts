@@ -8,6 +8,8 @@ import { GlobalVariableModule } from './global-variable/global-variable.module';
 import { SyncModule } from './sync/sync.module';
 import { PropertiesModule } from './properties/properties.module';
 import { UnitsModule } from './units/units.module';
+import { TagsModule } from './tags/tags.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   controllers: [AppController],
@@ -20,6 +22,8 @@ import { UnitsModule } from './units/units.module';
     SyncModule,
     PropertiesModule,
     UnitsModule,
+    TagsModule,
+    MediaModule,
   ],
 })
 export class AppModule {}

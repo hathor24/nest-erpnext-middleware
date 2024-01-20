@@ -6,6 +6,9 @@ import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { GlobalVariableService } from '../global-variable/global-variable.service';
 import { ProductsService } from '../products/products.service';
 import { UnitsService } from '../units/units.service';
+import { TagsService } from '../tags/tags.service';
+import { MediaService } from '../media/media.service';
+import { MediaModule } from 'src/media/media.module';
 
 @Module({
   providers: [
@@ -15,7 +18,10 @@ import { UnitsService } from '../units/units.service';
     GlobalVariableService,
     ProductsService,
     UnitsService,
+    TagsService,
+    // MediaService,
   ],
+  imports: [MediaModule],
   controllers: [PropertiesController],
   exports: [PropertiesService],
 })

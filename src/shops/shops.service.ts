@@ -57,7 +57,6 @@ export class ShopsService {
 
       return shopApiClient;
     } catch (error) {
-      console.log(error.response.data);
       throw error;
     }
   }

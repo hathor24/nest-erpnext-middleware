@@ -7,9 +7,7 @@ import { ProductsService } from './products.service';
 
 @Controller('products')
 export class ProductsController {
-  constructor(
-    private readonly productsService: ProductsService, // private readonly manufacturersService: ManufacturersService,
-  ) {}
+  constructor(private readonly productsService: ProductsService) {}
 
   @Get('/erp')
   async getProductsFromErp() {

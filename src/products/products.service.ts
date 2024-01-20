@@ -6,7 +6,10 @@ import axios, { AxiosInstance } from 'axios';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { PropertiesService } from '../properties/properties.service';
 import { UnitsService } from '../units/units.service';
-
+import { TagsService } from '../tags/tags.service';
+import { MediaService } from '../media/media.service';
+import { v5 as uuidv5 } from 'uuid';
+import * as fs from 'fs';
 //TODO:
 //1. Media und Tags
 //2. mehr Produkteigenschaften mappen
@@ -22,6 +25,8 @@ export class ProductsService {
     private readonly manufacturersService: ManufacturersService,
     private readonly propertiesService: PropertiesService,
     private readonly unitsService: UnitsService,
+    private readonly tagsService: TagsService,
+    private readonly mediaService: MediaService,
   ) {}
 
   public async getParentProductById(productId: string, shopApiClient: any) {
@@ -77,16 +82,6 @@ export class ProductsService {
     // shopProduct: any | null,
   ): Promise<any> {
     try {
-      // const tags = [
-      //   modifiedProduct.frost,
-      //   modifiedProduct.eimer,
-      //   modifiedProduct.boden,
-      //   modifiedProduct.spedition,
-      //   modifiedProduct.sperr,
-      //   modifiedProduct.vegan,
-      //   modifiedProduct.rabattfrei,
-      // ];
-
       // const shopPrice = (type: string) => {
       //   const shops = type === 'main' ? mainArticle : modifiedProduct;
 
@@ -202,6 +197,16 @@ export class ProductsService {
 
       const children = async (shopApiClient) => {
         if (modifiedProduct.variant_of) {
+          const tagArr = [
+            modifiedProduct.custom_frost_warning,
+            modifiedProduct.custom_bucket,
+            modifiedProduct.custom_floor,
+            modifiedProduct.custom_hauler,
+            modifiedProduct.custom_bulk,
+            modifiedProduct.custom_vegan,
+            modifiedProduct.custom_no_discount,
+          ];
+
           const child = [
             {
               id: await this.getUuidByProductNumber(
@@ -244,6 +249,9 @@ export class ProductsService {
                 br_pim_modified: modifiedProduct.modified,
               },
               stock: modifiedProduct.custom_stock,
+              tags: tagArr.includes(1)
+                ? await tags(shopApiClient, modifiedProduct)
+                : null,
             },
           ];
           return child;
@@ -254,7 +262,7 @@ export class ProductsService {
 
       const manufacturer: any = async (shopApiClient) => {
         let manufacturer: any = null;
-        const manufacturerName = mainArticle.brand; //TODO: parent Herstellername
+        const manufacturerName = mainArticle.brand;
         const allManufacturersData =
           await this.manufacturersService.getShopManufacturers(shopApiClient);
         const manufacturerData = allManufacturersData.find(
@@ -302,46 +310,50 @@ export class ProductsService {
 
       const properties: any = async (shopApiClient) => {
         const shopProductPropertyList: any = [];
-        // const shopPropertyOption: any = { name: null, groupId: null };
+        const pimProductPropertyIds: any = [];
         const pimProductPropertiesAssignments: any =
           mainArticle.custom_properties;
+        const shopProduct = await this.getProductFromShop(
+          modifiedProduct.item_code,
+          shopApiClient,
+        );
         for (const pimProductPropertyAssignment of pimProductPropertiesAssignments) {
-          const propertyData =
+          const shopPropertyGroupData =
             await this.propertiesService.getShopPropertyGroupByName(
               shopApiClient,
               pimProductPropertyAssignment.property,
             );
 
-          if (propertyData !== null) {
-            const propertyValueData =
+          if (shopPropertyGroupData != null) {
+            const shopPropertyGroupOptionData =
               await this.propertiesService.getShopPropertyGroupOptionByName(
                 shopApiClient,
                 pimProductPropertyAssignment.property_value,
-                propertyData.id,
+                shopPropertyGroupData.id,
               );
-
-            if (propertyValueData !== null) {
+            if (shopPropertyGroupOptionData != null) {
               const shopPropertyOption = {
-                id: propertyValueData.id,
-                name: propertyValueData.name,
-                groupId: propertyValueData.groupId,
+                id: shopPropertyGroupOptionData.id,
+                name: shopPropertyGroupOptionData.name,
+                groupId: shopPropertyGroupOptionData.groupId,
               };
+
               shopProductPropertyList.push(shopPropertyOption);
-              continue;
+              pimProductPropertyIds.push(shopPropertyGroupOptionData.id);
             } else {
               const createdPropertyGroupOption =
                 await this.propertiesService.createShopPropertyGroupOptionByGroupId(
                   shopApiClient,
                   pimProductPropertyAssignment.property_value,
-                  propertyData.id,
+                  shopPropertyGroupData.id,
                 );
+
               const shopPropertyOption = {
                 id: createdPropertyGroupOption.id,
                 name: createdPropertyGroupOption.name,
                 groupId: createdPropertyGroupOption.groupId,
               };
               shopProductPropertyList.push(shopPropertyOption);
-              continue;
             }
           } else {
             const createdPropertyGroup =
@@ -363,12 +375,176 @@ export class ProductsService {
               groupId: createdPropertyGroup.id,
             };
             shopProductPropertyList.push(shopPropertyOption);
-            continue;
           }
         }
+
+        for (const shopProductPropertyId of shopProduct.propertyIds) {
+          if (
+            !pimProductPropertyIds.includes(shopProductPropertyId) &&
+            shopProduct.parentId == null
+          ) {
+            await this.removePropertiesFromProduct(
+              shopApiClient,
+              shopProduct.id,
+              shopProductPropertyId,
+            );
+          }
+        }
+
         return shopProductPropertyList;
       };
 
+      const tags: any = async (shopApiClient: any, productType: any) => {
+        const shopProductTagList: any = [];
+        const pimProductTagsAssignments: any = {
+          frostWarning: productType.custom_frost_warning,
+          bucket: productType.custom_bucket,
+          floor: productType.custom_floor,
+          hauler: productType.custom_hauler,
+          bulk: productType.custom_bulk,
+          vegan: productType.custom_vegan,
+          noDiscount: productType.custom_no_discount,
+        };
+        const shopProduct = await this.getProductFromShop(
+          modifiedProduct.item_code,
+          shopApiClient,
+        );
+
+        for (const pimProductTagAssignment in pimProductTagsAssignments) {
+          const tagData: any = await this.tagsService.getShopTagByName(
+            shopApiClient,
+            pimProductTagAssignment,
+          );
+
+          if (pimProductTagsAssignments[pimProductTagAssignment] == 1) {
+            if (tagData !== null) {
+              const tagInfo = {
+                id: tagData.id,
+                name: tagData.name,
+              };
+              shopProductTagList.push(tagInfo);
+              continue;
+            } else {
+              const createdTag = await this.tagsService.createShopTag(
+                pimProductTagAssignment,
+                shopApiClient,
+              );
+              const tagInfo = {
+                id: createdTag.id,
+                name: createdTag.name,
+              };
+
+              shopProductTagList.push(tagInfo);
+              continue;
+            }
+          } else if (
+            pimProductTagsAssignments[pimProductTagAssignment] == 0 &&
+            tagData &&
+            shopProduct &&
+            shopProduct.tagIds &&
+            shopProduct.tagIds.includes(tagData.id)
+          ) {
+            await this.removeTagsFromProduct(
+              shopApiClient,
+              shopProduct.id,
+              tagData.id,
+            );
+          }
+        }
+
+        return shopProductTagList;
+      };
+
+      const media: any = async (shopApiClient: any, productType: any) => {
+        /**
+         * 1 Medien Entität erstellen, die dem Produkt zugeordnet wird
+         * 2 Image der Medienentität hinzufügen
+         */
+        const shopProductMediaList: any = [];
+        const pimProductMediaAssignments: any = {
+          coverImage: productType.image,
+          image01: productType.custom_attachimg01,
+          image02: productType.custom_attachimg02,
+          image03: productType.custom_attachimg03,
+          image04: productType.custom_attachimg04,
+          image05: productType.custom_attachimg05,
+          image06: productType.custom_attachimg06,
+          image07: productType.custom_attachimg07,
+          image08: productType.custom_attachimg08,
+        };
+
+        const shopProduct = await this.getProductFromShop(
+          modifiedProduct.item_code,
+          shopApiClient,
+        );
+
+        for (const pimProductMediaAssignment in pimProductMediaAssignments) {
+          const productMediaId = uuidv5(
+            pimProductMediaAssignments[pimProductMediaAssignment],
+            '1b671a64-40d5-491e-99b0-da01ff1f3341',
+          ).replace(/-/g, '');
+          const mediaId = uuidv5(
+            productMediaId,
+            '1b671a64-40d5-491e-99b0-da01ff1f3341',
+          ).replace(/-/g, '');
+          const mediaData: any = await this.mediaService.getShopMediaById(
+            mediaId,
+            shopApiClient,
+          );
+
+          if (pimProductMediaAssignments[pimProductMediaAssignment] != null) {
+            if (mediaData != null) {
+              const mediaInfo = {
+                id: mediaData.id,
+                //         name: mediaData.name,
+              };
+              shopProductMediaList.push(mediaInfo);
+              continue;
+            } else {
+              if (
+                pimProductMediaAssignments.hasOwnProperty(
+                  pimProductMediaAssignment,
+                )
+              ) {
+                const imgIndex =
+                  Object.keys(pimProductMediaAssignments).indexOf(
+                    pimProductMediaAssignment,
+                  ) + 1;
+                const createdAssociation =
+                  await this.mediaService.createProductMediaAssociation(
+                    productMediaId,
+                    shopProduct.id,
+                    mediaId,
+                    imgIndex,
+                    shopApiClient,
+                  );
+
+                shopProductMediaList.push(mediaId);
+              }
+
+              await this.mediaService.attachMediaRessourceToMediaObject(
+                mediaId,
+                pimProductMediaAssignments[pimProductMediaAssignment],
+                erpShopId,
+              );
+            }
+            //   } else if (
+            //     pimProductMediaAssignments[pimProductMediaAssignment] == null &&
+            //     mediaData &&
+            //     shopProduct &&
+            //     shopProduct.mediaIds &&
+            //     shopProduct.mediaIds.includes(mediaData.id)
+            //   ) {
+            //     await this.removeMediaFromProduct(
+            //       shopApiClient,
+            //       shopProduct.id,
+            //       mediaData.id,
+            //     );
+          }
+        }
+
+        return shopProductMediaList;
+      };
       const processedErpProduct: any = {
         ////////////////
         // ATTRIBUTES //
@@ -420,10 +596,11 @@ export class ProductsService {
         ///////////////////
 
         children: await children(shopApiClient),
-        // media
+        // coverId: await coverId(),
+        // media: await media(shopApiClient, mainArticle),
         configuratorSettings: await configuratorSettings(),
         properties: await properties(shopApiClient),
-        // tags
+        tags: await tags(shopApiClient, mainArticle),
       };
       if (mainArticle.uuid !== null) {
         processedErpProduct.id = await this.getUuidByProductNumber(
@@ -433,9 +610,17 @@ export class ProductsService {
       } else {
         processedErpProduct.id = parentUuid;
       }
+      console.log(shopApiClient, mainArticle);
+      if (shopApiClient && mainArticle) {
+        await media(shopApiClient, mainArticle);
+      } else {
+        console.log('shopApiClient oder mainArticle ist undefined');
+      }
 
+      console.log('WEITER', processedErpProduct);
       return processedErpProduct;
     } catch (error) {
+      console.log('FEHLER, mein Lieber', error.response.data);
       throw error;
     }
   }
@@ -770,7 +955,65 @@ export class ProductsService {
     }
   }
 
+  public async removeTagsFromProduct(
+    shopApiClient: any,
+    productId: string,
+    tagId: string,
+  ): Promise<any> {
+    const response = await shopApiClient.delete(
+      `/api/product/${productId}/tags/${tagId}`,
+    );
+    return response;
+  }
+
+  // TODO Hier weitermachen
+
+  public async removePropertiesFromProduct(
+    shopApiClient: any,
+    productId: string,
+    propertyId: string,
+  ): Promise<any> {
+    const response = await shopApiClient.delete(
+      `/api/product/${productId}/properties/${propertyId}`,
+    );
+    return response;
+  }
+
   // SHOPSERVICE
+  async getShopApiFileClient(shopApiData: any): Promise<AxiosInstance> {
+    try {
+      const shopApiFileClient = this.createShopApiFileClient(shopApiData);
+      return shopApiFileClient;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async createShopApiFileClient(shopApiData: any): Promise<AxiosInstance> {
+    try {
+      const { shopurl, apikey, apisecret } = shopApiData;
+
+      const token = await this.getShopBearerToken(shopurl, apikey, apisecret);
+
+      const shopApiFileClient = axios.create({
+        baseURL: shopurl,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'image/jpg',
+          Authorization: `Bearer ${token}`,
+          extension: 'jpg',
+        },
+      });
+
+      return shopApiFileClient;
+    } catch (error) {
+      throw error;
+    }
+  }
+  async createShopApiFileClientByShopId(erpShopId: string) {
+    const shopApiData = await this.getShopApiDataByShopId(erpShopId);
+    return this.createShopApiFileClient(shopApiData);
+  }
+
   async getShopApiClient(shopApiData: any): Promise<AxiosInstance> {
     try {
       const shopApiClient = this.createShopApiClient(shopApiData);
@@ -858,6 +1101,19 @@ export class ProductsService {
       const response = await erpApiClient.get(`/Item%20Shop/${shopNumber}`);
       const erpShop = response.data.data;
       return erpShop;
+    } catch (error) {
+      throw error;
+    }
+  }
+  //TODO SEHR WICHTIG
+  async patchShopProduct(shopApiClient: any, productId: string, data: any) {
+    try {
+      const response = await shopApiClient.patch(
+        `/api/product/${productId}`,
+        data,
+      );
+      const shopProduct = response.data.data;
+      return shopProduct;
     } catch (error) {
       throw error;
     }

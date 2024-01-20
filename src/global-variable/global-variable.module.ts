@@ -4,6 +4,9 @@ import { ProductsService } from '../products/products.service';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { PropertiesModule } from '../properties/properties.module';
 import { UnitsService } from '../units/units.service';
+import { TagsService } from '../tags/tags.service';
+import { MediaService } from '../media/media.service';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   providers: [
@@ -11,7 +14,9 @@ import { UnitsService } from '../units/units.service';
     ProductsService,
     ManufacturersService,
     UnitsService,
+    TagsService,
+    // MediaService,
   ],
-  imports: [PropertiesModule], // Fügen Sie PropertiesModule zu den Imports hinzu
+  imports: [PropertiesModule, MediaModule], // Fügen Sie PropertiesModule zu den Imports hinzu
 })
 export class GlobalVariableModule {}
