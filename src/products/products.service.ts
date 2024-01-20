@@ -9,7 +9,6 @@ import { UnitsService } from '../units/units.service';
 import { TagsService } from '../tags/tags.service';
 import { MediaService } from '../media/media.service';
 import { v5 as uuidv5 } from 'uuid';
-import * as fs from 'fs';
 //TODO:
 //1. Media und Tags
 //2. mehr Produkteigenschaften mappen

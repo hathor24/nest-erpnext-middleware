@@ -10,6 +10,7 @@ import { PropertiesModule } from './properties/properties.module';
 import { UnitsModule } from './units/units.module';
 import { TagsModule } from './tags/tags.module';
 import { MediaModule } from './media/media.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   controllers: [AppController],
@@ -24,6 +25,7 @@ import { MediaModule } from './media/media.module';
     UnitsModule,
     TagsModule,
     MediaModule,
+    CommonModule,
   ],
 })
 export class AppModule {}

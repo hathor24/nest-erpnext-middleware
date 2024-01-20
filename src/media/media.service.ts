@@ -1,13 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
 import erpFileClient from '../api/erp-file-client';
-import { ProductsService } from '../products/products.service';
 import axios, { AxiosInstance } from 'axios';
 import erpApiClient from '../api/erp-api-client';
 
 @Injectable()
 export class MediaService {
-  //   constructor(private readonly productsService: ProductsService) {}
   public async getShopMedia(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/media`);
@@ -96,7 +93,7 @@ export class MediaService {
 
       const shopApiFileClient =
         await this.createShopApiFileClientByShopId(erpShopId);
-      const response = await shopApiFileClient.post(
+      await shopApiFileClient.post(
         `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg`,
         binaryFileData,
       );
