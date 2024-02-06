@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ProductsService } from '../products/products.service';
+import { ShopsService } from '../shops/shops.service';
 
 @Injectable()
 export class GlobalVariableService {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(private readonly shopsService: ShopsService) {}
   public shopApiClient: any =
-    this.productsService.createShopApiClientByShopId('e1f90c392b');
+    this.shopsService.createShopApiClientByShopId('e1f90c392b');
 }

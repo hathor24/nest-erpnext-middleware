@@ -6,7 +6,6 @@ export class UnitsService {
   public async getShopUnits(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/unit`);
-
       const allUnitsData = await response.data.data;
 
       return allUnitsData;
@@ -20,6 +19,20 @@ export class UnitsService {
     const unitData = await response.data.data;
 
     return unitData;
+  }
+
+  public async getShopUnitByName(unitName: string, shopApiClient: any) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/unit?filter[name]=${unitName}`,
+      );
+      const unitData = response.data.data[0];
+      console.log(unitData);
+      return unitData;
+    } catch (error) {
+      console.log('Unit not found');
+      return null;
+    }
   }
 
   public async deleteShopUnit(unitId: string, shopApiClient: any) {
@@ -70,5 +83,30 @@ export class UnitsService {
     const unitData = await response.data.data;
 
     return unitData;
+  }
+  public async processPimProductUnit(productData: any, shopApiClient: any) {
+    let unit: any = null;
+    const unitName = productData.stock_uom;
+    const pimUnitData = await this.getPimUnitDataByUnitName(unitName);
+    let unitShortCode = null;
+    if (!pimUnitData.custom_uom_short_code) {
+      unitShortCode = 'NA';
+    } else {
+      unitShortCode = pimUnitData.custom_uom_short_code;
+    }
+
+    const allUnitsData = await this.getShopUnits(shopApiClient);
+    const unitData = allUnitsData.find((obj) => obj.name === unitName);
+    if (unitData) {
+      unit = unitData;
+    } else {
+      const createdUnit = await this.createShopUnit(
+        unitShortCode,
+        unitName,
+        shopApiClient,
+      );
+      unit = createdUnit;
+    }
+    return unit;
   }
 }

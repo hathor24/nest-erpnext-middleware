@@ -1,22 +1,13 @@
 // products.service.ts
 import { Injectable } from '@nestjs/common';
 import erpApiClient from '../api/erp-api-client';
-// import { ShopsService } from '../shops/shops.service';
-import axios, { AxiosInstance } from 'axios';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { PropertiesService } from '../properties/properties.service';
 import { UnitsService } from '../units/units.service';
 import { TagsService } from '../tags/tags.service';
 import { MediaService } from '../media/media.service';
-import { v5 as uuidv5 } from 'uuid';
-//TODO:
-//1. Media und Tags
-//2. mehr Produkteigenschaften mappen
-//3. mehrere alle Shops syncen
-// interface ShopApiClient {
-//   get(path: string): Promise<any>;
-//   post(path: string, data: any): Promise<any>;
-// }
+import { ShopsService } from '../shops/shops.service';
+import { ConfiguratorSettingsService } from '../configurator-settings/configurator-settings.service';
 
 @Injectable()
 export class ProductsService {
@@ -26,861 +17,569 @@ export class ProductsService {
     private readonly unitsService: UnitsService,
     private readonly tagsService: TagsService,
     private readonly mediaService: MediaService,
+    private readonly shopsService: ShopsService,
+    private readonly configuratorSettingsService: ConfiguratorSettingsService,
   ) {}
 
-  public async getParentProductById(productId: string, shopApiClient: any) {
-    const responseProduct = await shopApiClient.get(
-      `/api/product/${productId}`,
-    );
-    const product = responseProduct.data.data;
-    const productParent = { parentId: product.parentId, id: product.id };
-
-    return productParent;
-  }
-
-  public async getProductByProductNumberFromErp(productNumber: string) {
+  public async getShopProducts(shopApiClient: any) {
     try {
-      const response = await erpApiClient.get(`/Item/${productNumber}`);
-      const erpProduct = response.data.data;
-      return erpProduct;
+      const response = await shopApiClient.get(`/api/product`);
+
+      const allProductsData = await response.data.data;
+
+      return allProductsData;
     } catch (error) {
       throw error;
     }
   }
 
-  public async processBulkData(payload: any, action: string) {
-    if (action === 'upsert') {
-      // const bulkData = prepareCreateBulkData(payload);
-      // return bulkData;
-    } else if (action === 'delete') {
-      // const bulkData = prepareDeleteBulkData(payload);
-      // return bulkData;
-    } else {
-      throw new Error(
-        "Ungültige Aktion. Unterstützte Aktionen sind 'upsert' oder 'delete'.",
-      );
-    }
+  public async getShopProductById(productId: string, shopApiClient: any) {
+    const response = await shopApiClient.get(`/api/product/${productId}`);
+    const productData = await response.data.data;
+
+    return productData;
   }
-
-  public async deleteErpProduct(deletedProduct: any): Promise<any> {
-    try {
-      const deletedErpProduct: any = {
-        id: deletedProduct.id,
-      };
-
-      return deletedErpProduct;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async processErpProduct(
-    erpShopId: string,
+  public async getShopProductByProductNumber(
+    productNumber: string,
     shopApiClient: any,
-    modifiedProduct: any,
-    // shopProduct: any | null,
-  ): Promise<any> {
+  ) {
     try {
-      // const shopPrice = (type: string) => {
-      //   const shops = type === 'main' ? mainArticle : modifiedProduct;
-
-      //   for (const shop of shops.custom_assigned_shops) {
-      //     if (shop.shop === erpShopId) {
-      //       return shop.product_price || shops.price;
-      //     }
-      //   }
-      // };
-
-      // const shopDesc = (type: string) => {
-      //   const shops = type === 'main' ? mainArticle : modifiedProduct;
-
-      //   for (const shop of shops.custom_assigned_shops) {
-      //     if (shop.shop === erpShopId) {
-      //       return shop.product_description || shops.description;
-      //     }
-      //   }
-      // };
-
-      const shopPrice = (type: string) => {
-        if (type == 'main') {
-          for (const shop of mainArticle.custom_assigned_shops) {
-            if (shop.shop === erpShopId) {
-              if (shop.product_price) {
-                return shop.product_price;
-              } else {
-                return mainArticle.custom_price;
-              }
-            }
-          }
-        } else if (type == 'child') {
-          for (const shop of modifiedProduct.custom_assigned_shops) {
-            if (shop.shop === erpShopId) {
-              if (shop.product_price) {
-                return shop.product_price;
-              } else {
-                return modifiedProduct.custom_price;
-              }
-            }
-          }
-        }
-      };
-      const shopDesc = (type: string) => {
-        if (type == 'main') {
-          for (const shop of mainArticle.custom_assigned_shops) {
-            if (shop.shop === erpShopId) {
-              if (shop.product_description) {
-                return shop.product_description;
-              } else {
-                return mainArticle.description;
-              }
-            }
-          }
-        } else if (type == 'child') {
-          for (const shop of modifiedProduct.custom_assigned_shops) {
-            if (shop.shop === erpShopId) {
-              if (shop.product_description) {
-                return shop.product_description;
-              } else {
-                return modifiedProduct.description;
-              }
-            }
-          }
-        }
-      };
-
-      const parentUuid = modifiedProduct.variant_of
-        ? await this.getUuidByProductNumber(
-            modifiedProduct.variant_of,
-            shopApiClient,
-          )
-        : null;
-
-      const options = parentUuid
-        ? await this.getOptionListUuids(
-            modifiedProduct.item_code,
-            shopApiClient,
-          )
-        : null;
-
-      const configuration = () => {
-        if (options) {
-          const optionObjects = options.map((option) => ({
-            optionId: option.id,
-          }));
-
-          return optionObjects;
-        } else {
-          return null;
-        }
-      };
-
-      const configuratorSettings = async () => {
-        const childrenResponse = await children(shopApiClient);
-        if (!childrenResponse || childrenResponse[0].id) {
-          return null;
-        } else {
-          return configuration();
-        }
-      };
-
-      const salesChannelInfo = await this.getSalesChannelInfo(
-        erpShopId,
-        shopApiClient,
+      const response = await shopApiClient.get(
+        `/api/product?filter[productNumber]=${productNumber}`,
       );
+      const productData = response.data.data;
+      if (productData.length === 0) {
+        return { id: null };
+      }
+      return productData[0];
+    } catch (error) {
+      console.log('Shop product not found');
+      return { id: null };
+    }
+  }
 
-      const mainArticle = modifiedProduct.variant_of
-        ? await this.getProductByProductNumberFromErp(
-            modifiedProduct.variant_of,
+  public async deleteShopProduct(productId: string, shopApiClient: any) {
+    const response = await shopApiClient.delete(`/api/product/${productId}`);
+    const deletedProduct = response.data;
+
+    return deletedProduct;
+  }
+
+  public async createShopProduct(
+    productData: any,
+    shopApiClient: any,
+    erpShopId: string,
+  ) {
+    try {
+      const allProductsData = await this.getShopProducts(shopApiClient);
+      const shopProduct = allProductsData.find(
+        (obj) => obj.productNumber === productData.item_code,
+      );
+      const data = {
+        parentId: (
+          await this.getShopProductByProductNumber(
+            productData.variant_of,
+            shopApiClient,
           )
-        : modifiedProduct;
-
-      const children = async (shopApiClient) => {
-        if (modifiedProduct.variant_of) {
-          const tagArr = [
-            modifiedProduct.custom_frost_warning,
-            modifiedProduct.custom_bucket,
-            modifiedProduct.custom_floor,
-            modifiedProduct.custom_hauler,
-            modifiedProduct.custom_bulk,
-            modifiedProduct.custom_vegan,
-            modifiedProduct.custom_no_discount,
-          ];
-
-          const child = [
-            {
-              id: await this.getUuidByProductNumber(
-                modifiedProduct.item_code,
-                shopApiClient,
-              ),
-              price: [
-                {
-                  currencyId: salesChannelInfo.currencyId,
-                  gross: shopPrice('child'),
-                  net: (shopPrice('child') / 119) * 100,
-                  linked: true,
-                },
-              ],
-              productNumber: modifiedProduct.item_code,
-              active: modifiedProduct.custom_active == 0 ? false : true,
-              purchaseUnit:
-                modifiedProduct.custom_purchase_unit !== 0
-                  ? modifiedProduct.custom_purchase_unit
-                  : null,
-              weight:
-                modifiedProduct.custom_weight !== 0
-                  ? modifiedProduct.custom_weight
-                  : null,
-              width:
-                modifiedProduct.custom_width !== 0
-                  ? modifiedProduct.custom_width
-                  : null,
-              height:
-                modifiedProduct.custom_height !== 0
-                  ? modifiedProduct.custom_height
-                  : null,
-              length:
-                modifiedProduct.custom_length !== 0
-                  ? modifiedProduct.custom_length
-                  : null,
-              options: options,
-              description: shopDesc('child'),
-              customFields: {
-                br_pim_modified: modifiedProduct.modified,
-              },
-              stock: modifiedProduct.custom_stock,
-              tags: tagArr.includes(1)
-                ? await tags(shopApiClient, modifiedProduct)
-                : null,
-            },
-          ];
-          return child;
-        } else {
-          return null;
-        }
-      };
-
-      const manufacturer: any = async (shopApiClient) => {
-        let manufacturer: any = null;
-        const manufacturerName = mainArticle.brand;
-        const allManufacturersData =
-          await this.manufacturersService.getShopManufacturers(shopApiClient);
-        const manufacturerData = allManufacturersData.find(
-          (obj) => obj.name === manufacturerName,
-        );
-        if (manufacturerData) {
-          manufacturer = manufacturerData;
-        } else {
-          const createdManufacturer =
-            await this.manufacturersService.createShopManufacturer(
-              manufacturerName,
-              shopApiClient,
-            );
-          manufacturer = createdManufacturer;
-        }
-        return manufacturer;
-      };
-      const unit: any = async (shopApiClient) => {
-        let unit: any = null;
-        const unitName = mainArticle.stock_uom;
-        const pimUnitData =
-          await this.unitsService.getPimUnitDataByUnitName(unitName);
-        let unitShortCode = null;
-        if (!pimUnitData.custom_uom_short_code) {
-          unitShortCode = 'NA';
-        } else {
-          unitShortCode = pimUnitData.custom_uom_short_code;
-        }
-
-        const allUnitsData =
-          await this.unitsService.getShopUnits(shopApiClient);
-        const unitData = allUnitsData.find((obj) => obj.name === unitName);
-        if (unitData) {
-          unit = unitData;
-        } else {
-          const createdUnit = await this.unitsService.createShopUnit(
-            unitShortCode,
-            unitName,
+        ).id,
+        manufacturerId: (
+          await this.manufacturersService.getOrCreateShopManufacturer(
+            productData.brand,
             shopApiClient,
-          );
-          unit = createdUnit;
-        }
-        return unit;
-      };
-
-      const properties: any = async (shopApiClient) => {
-        const shopProductPropertyList: any = [];
-        const pimProductPropertyIds: any = [];
-        const pimProductPropertiesAssignments: any =
-          mainArticle.custom_properties;
-        const shopProduct = await this.getProductFromShop(
-          modifiedProduct.item_code,
-          shopApiClient,
-        );
-        for (const pimProductPropertyAssignment of pimProductPropertiesAssignments) {
-          const shopPropertyGroupData =
-            await this.propertiesService.getShopPropertyGroupByName(
-              shopApiClient,
-              pimProductPropertyAssignment.property,
-            );
-
-          if (shopPropertyGroupData != null) {
-            const shopPropertyGroupOptionData =
-              await this.propertiesService.getShopPropertyGroupOptionByName(
-                shopApiClient,
-                pimProductPropertyAssignment.property_value,
-                shopPropertyGroupData.id,
-              );
-            if (shopPropertyGroupOptionData != null) {
-              const shopPropertyOption = {
-                id: shopPropertyGroupOptionData.id,
-                name: shopPropertyGroupOptionData.name,
-                groupId: shopPropertyGroupOptionData.groupId,
-              };
-
-              shopProductPropertyList.push(shopPropertyOption);
-              pimProductPropertyIds.push(shopPropertyGroupOptionData.id);
-            } else {
-              const createdPropertyGroupOption =
-                await this.propertiesService.createShopPropertyGroupOptionByGroupId(
-                  shopApiClient,
-                  pimProductPropertyAssignment.property_value,
-                  shopPropertyGroupData.id,
-                );
-
-              const shopPropertyOption = {
-                id: createdPropertyGroupOption.id,
-                name: createdPropertyGroupOption.name,
-                groupId: createdPropertyGroupOption.groupId,
-              };
-              shopProductPropertyList.push(shopPropertyOption);
-            }
-          } else {
-            const createdPropertyGroup =
-              await this.propertiesService.createShopPropertyGroup(
-                pimProductPropertyAssignment.property,
-                shopApiClient,
-              );
-
-            const createdPropertyGroupOption =
-              await this.propertiesService.createShopPropertyGroupOptionByGroupId(
-                shopApiClient,
-                pimProductPropertyAssignment.property_value,
-                createdPropertyGroup.id,
-              );
-
-            const shopPropertyOption = {
-              id: createdPropertyGroupOption.id,
-              name: createdPropertyGroupOption.name,
-              groupId: createdPropertyGroup.id,
-            };
-            shopProductPropertyList.push(shopPropertyOption);
-          }
-        }
-
-        for (const shopProductPropertyId of shopProduct.propertyIds) {
-          if (
-            !pimProductPropertyIds.includes(shopProductPropertyId) &&
-            shopProduct.parentId == null
-          ) {
-            await this.removePropertiesFromProduct(
-              shopApiClient,
-              shopProduct.id,
-              shopProductPropertyId,
-            );
-          }
-        }
-
-        return shopProductPropertyList;
-      };
-
-      const tags: any = async (shopApiClient: any, productType: any) => {
-        const shopProductTagList: any = [];
-        const pimProductTagsAssignments: any = {
-          frostWarning: productType.custom_frost_warning,
-          bucket: productType.custom_bucket,
-          floor: productType.custom_floor,
-          hauler: productType.custom_hauler,
-          bulk: productType.custom_bulk,
-          vegan: productType.custom_vegan,
-          noDiscount: productType.custom_no_discount,
-        };
-        const shopProduct = await this.getProductFromShop(
-          modifiedProduct.item_code,
-          shopApiClient,
-        );
-
-        for (const pimProductTagAssignment in pimProductTagsAssignments) {
-          const tagData: any = await this.tagsService.getShopTagByName(
+          )
+        ).id,
+        unitId: (
+          await this.unitsService.processPimProductUnit(
+            productData,
             shopApiClient,
-            pimProductTagAssignment,
-          );
-
-          if (pimProductTagsAssignments[pimProductTagAssignment] == 1) {
-            if (tagData !== null) {
-              const tagInfo = {
-                id: tagData.id,
-                name: tagData.name,
-              };
-              shopProductTagList.push(tagInfo);
-              continue;
-            } else {
-              const createdTag = await this.tagsService.createShopTag(
-                pimProductTagAssignment,
-                shopApiClient,
-              );
-              const tagInfo = {
-                id: createdTag.id,
-                name: createdTag.name,
-              };
-
-              shopProductTagList.push(tagInfo);
-              continue;
-            }
-          } else if (
-            pimProductTagsAssignments[pimProductTagAssignment] == 0 &&
-            tagData &&
-            shopProduct &&
-            shopProduct.tagIds &&
-            shopProduct.tagIds.includes(tagData.id)
-          ) {
-            await this.removeTagsFromProduct(
-              shopApiClient,
-              shopProduct.id,
-              tagData.id,
-            );
-          }
-        }
-
-        return shopProductTagList;
-      };
-
-      const media: any = async (shopApiClient: any, productType: any) => {
-        /**
-         * 1 Medien Entität erstellen, die dem Produkt zugeordnet wird
-         * 2 Image der Medienentität hinzufügen
-         */
-        const shopProductMediaList: any = [];
-        const pimProductMediaAssignments: any = {
-          coverImage: productType.image,
-          image01: productType.custom_attachimg01,
-          image02: productType.custom_attachimg02,
-          image03: productType.custom_attachimg03,
-          image04: productType.custom_attachimg04,
-          image05: productType.custom_attachimg05,
-          image06: productType.custom_attachimg06,
-          image07: productType.custom_attachimg07,
-          image08: productType.custom_attachimg08,
-        };
-
-        const shopProduct = await this.getProductFromShop(
-          modifiedProduct.item_code,
-          shopApiClient,
-        );
-
-        for (const pimProductMediaAssignment in pimProductMediaAssignments) {
-          const productMediaId = uuidv5(
-            pimProductMediaAssignments[pimProductMediaAssignment],
-            '1b671a64-40d5-491e-99b0-da01ff1f3341',
-          ).replace(/-/g, '');
-          const mediaId = uuidv5(
-            productMediaId,
-            '1b671a64-40d5-491e-99b0-da01ff1f3341',
-          ).replace(/-/g, '');
-          const mediaData: any = await this.mediaService.getShopMediaById(
-            mediaId,
-            shopApiClient,
-          );
-
-          if (pimProductMediaAssignments[pimProductMediaAssignment] != null) {
-            if (mediaData != null) {
-              const mediaInfo = {
-                id: mediaData.id,
-                //         name: mediaData.name,
-              };
-              shopProductMediaList.push(mediaInfo);
-              continue;
-            } else {
-              if (
-                pimProductMediaAssignments.hasOwnProperty(
-                  pimProductMediaAssignment,
-                )
-              ) {
-                const imgIndex =
-                  Object.keys(pimProductMediaAssignments).indexOf(
-                    pimProductMediaAssignment,
-                  ) + 1;
-                const createdAssociation =
-                  await this.mediaService.createProductMediaAssociation(
-                    productMediaId,
-                    shopProduct.id,
-                    mediaId,
-                    imgIndex,
-                    shopApiClient,
-                  );
-
-                shopProductMediaList.push(mediaId);
-              }
-
-              await this.mediaService.attachMediaRessourceToMediaObject(
-                mediaId,
-                pimProductMediaAssignments[pimProductMediaAssignment],
-                erpShopId,
-              );
-            }
-            //   } else if (
-            //     pimProductMediaAssignments[pimProductMediaAssignment] == null &&
-            //     mediaData &&
-            //     shopProduct &&
-            //     shopProduct.mediaIds &&
-            //     shopProduct.mediaIds.includes(mediaData.id)
-            //   ) {
-            //     await this.removeMediaFromProduct(
-            //       shopApiClient,
-            //       shopProduct.id,
-            //       mediaData.id,
-            //     );
-          }
-        }
-
-        return shopProductMediaList;
-      };
-      const processedErpProduct: any = {
-        ////////////////
-        // ATTRIBUTES //
-        ////////////////
-
-        // parentId
-        manufacturerId: (await manufacturer(shopApiClient)).id,
-        unitId: (await unit(shopApiClient)).id,
-        taxId: await this.getStandardTaxInfo(
-          mainArticle.item_code,
-          shopApiClient,
-        ),
-        // coverId
+          )
+        ).id,
+        /* required */
+        taxId: (await this.shopsService.getShopStandardTaxInfo(shopApiClient))
+          .id,
+        // coverId: await coverId(),
+        /* required */
         price: [
           {
-            currencyId: salesChannelInfo.currencyId,
-            gross: shopPrice('main'),
-            net: (shopPrice('main') / 119) * 100,
+            currencyId: (
+              await this.shopsService.getShopSalesChannelInfo(
+                erpShopId,
+                shopApiClient,
+              )
+            ).currencyId,
+            gross: await this.getPimProductPrice(productData, erpShopId),
+            net:
+              ((await this.getPimProductPrice(productData, erpShopId)) / 119) *
+              100,
             linked: true,
           },
         ],
-        productNumber: mainArticle.item_code,
-        active: mainArticle.custom_active == 0 ? false : true,
-        manufacturerNumber: mainArticle.custom_manufacturer_number,
-        ean: mainArticle.custom_ean,
-        purchaseUnit: mainArticle.custom_purchase_unit,
-        referenceUnit: mainArticle.custom_reference_unit,
+        visibilities: await this.processPimProductVisibilities(
+          productData,
+          erpShopId,
+          shopApiClient,
+        ),
+        /* required */
+        productNumber: productData.item_code,
+        active: productData.custom_active == 0 ? false : true,
+        variantListingConfig: await this.getVariantListingConfig(
+          productData,
+          shopApiClient,
+        ),
+        manufacturerNumber: productData.custom_manufacturer_number,
+        ean: productData.custom_ean,
+        purchaseUnit: productData.custom_purchase_unit,
+        referenceUnit: productData.custom_reference_unit,
         markAsTopseller:
-          mainArticle.custom_mark_as_topseller == 0 ? false : true,
-        weight: mainArticle.custom_weight,
-        width: mainArticle.custom_width,
-        height: mainArticle.custom_height,
-        length: mainArticle.custom_length,
-        // metaDescription
-        name: mainArticle.item_name,
-        keywords: mainArticle.keywords,
-        description: shopDesc('main'),
-        // metaTitle
-        packUnit: mainArticle.custom_pack_unit,
-        packUnitPlural: mainArticle.custom_pack_unit_plural,
+          productData.custom_mark_as_topseller == 0 ? false : true,
+        weight: productData.custom_weight,
+        width: productData.custom_width,
+        height: productData.custom_height,
+        length: productData.custom_length,
+        /* required */
+        name: productData.item_name,
+        keywords: productData.custom_keywords,
+        description: await this.getPimProductDescription(
+          productData,
+          erpShopId,
+        ),
+        packUnit: productData.custom_pack_unit,
+        packUnitPlural: productData.custom_pack_unit_plural,
         customFields: {
-          br_pim_modified: mainArticle.modified,
+          br_pim_modified: productData.modified,
         },
-        availableStock: mainArticle.custom_stock,
-        stock: mainArticle.custom_stock,
+        availableStock: productData.custom_stock,
+        /* required */
+        stock: productData.custom_stock,
 
         ///////////////////
         // RELATIONSHIPS //
         ///////////////////
 
-        children: await children(shopApiClient),
-        // coverId: await coverId(),
-        // media: await media(shopApiClient, mainArticle),
-        configuratorSettings: await configuratorSettings(),
-        properties: await properties(shopApiClient),
-        tags: await tags(shopApiClient, mainArticle),
-      };
-      if (mainArticle.uuid !== null) {
-        processedErpProduct.id = await this.getUuidByProductNumber(
-          mainArticle.item_code,
+        children: await this.getChildrenBulk(
+          productData,
+          erpShopId,
           shopApiClient,
-        );
-      } else {
-        processedErpProduct.id = parentUuid;
-      }
-      console.log(shopApiClient, mainArticle);
-      if (shopApiClient && mainArticle) {
-        await media(shopApiClient, mainArticle);
-      } else {
-        console.log('shopApiClient oder mainArticle ist undefined');
-      }
+        ),
+        // media: await media(shopApiClient, productData),
 
-      console.log('WEITER', processedErpProduct);
-      return processedErpProduct;
+        configuratorSettings: await this.processPimProductConfiguratorSettings(
+          productData,
+          shopApiClient,
+        ),
+        //für parent
+        options: await this.propertiesService.processPimProductPropertyOptions(
+          productData,
+          shopApiClient,
+        ), //für children zugehörige option
+        properties: await this.propertiesService.processPimProductProperties(
+          productData,
+          shopProduct,
+          shopApiClient,
+        ),
+        tags: await this.tagsService.processPimProductTags(
+          productData,
+          shopProduct,
+          shopApiClient,
+        ),
+      };
+      // console.log(data);
+      // throw 'end of createShopProduct';
+      if (shopProduct !== undefined) {
+        const response = await shopApiClient.patch(
+          `/api/product/${shopProduct.id}?_response=basic`,
+          data,
+        );
+
+        const updatedProduct = response.data.data;
+
+        return updatedProduct;
+      } else {
+        const response = await shopApiClient.post(
+          '/api/product?_response=basic',
+          data,
+        );
+
+        const createdProduct = response.data.data;
+
+        return createdProduct;
+      }
     } catch (error) {
-      console.log('FEHLER, mein Lieber', error.response.data);
+      console.log(error.response.data);
+    }
+  }
+  public async updateShopProduct(
+    shopApiClient: any,
+    productId: string,
+    productData: any,
+  ) {
+    try {
+      const response = await shopApiClient.patch(
+        `/api/product/${productId}?_response=basic`,
+        productData,
+      );
+      const updatedProduct = response.data.data;
+      return updatedProduct;
+    } catch (error) {
       throw error;
     }
   }
-  public async createProductsBulk(erpShopId: string, shopApiClient: any) {
-    const modifiedProducts = await this.getModifiedProducts(
-      erpShopId,
-      shopApiClient,
-    );
-
-    const productsBulk = [];
-    for (const modifiedProduct of modifiedProducts) {
-      const processedErpProduct = await this.processErpProduct(
-        erpShopId,
-        shopApiClient,
-        modifiedProduct,
-      );
-      productsBulk.push(processedErpProduct);
+  public async getPimProductPrice(productData: any, erpShopId: string) {
+    try {
+      for (const shop of productData.custom_assigned_shops) {
+        if (shop.shop === erpShopId) {
+          return shop.product_price
+            ? shop.product_price
+            : productData.custom_price;
+        }
+      }
+    } catch (error) {
+      console.log('Product price not found');
+      return null;
     }
-    // productsBulk.forEach((product) => {
-    //   console.log(product);
-    // });
-    // throw new Error('test');
-
-    return productsBulk;
   }
-  public async createDeletedProductsBulk(
+  public async getPimProductDescription(productData: any, erpShopId: string) {
+    try {
+      for (const shop of productData.custom_assigned_shops) {
+        if (shop.shop === erpShopId) {
+          return shop.product_description
+            ? shop.product_description
+            : productData.description;
+        }
+      }
+    } catch (error) {
+      console.log('Product description not found');
+      return null;
+    }
+  }
+
+  //überprüfen, war nur autovervollständigung
+  public async getShopProductParent(productData: any, shopApiClient: any) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/product/${productData.parentId}`,
+      );
+      const parentProduct = response.data.data;
+      return parentProduct;
+    } catch (error) {
+      console.log('Parent shop product not found');
+      return null;
+    }
+  }
+
+  public async getPimProductParent(productData: any) {
+    try {
+      const response = await erpApiClient.get(
+        `/Item/${productData.variant_of}`,
+      );
+      const parentProduct = response.data.data;
+      return parentProduct;
+    } catch (error) {
+      console.log('Parent pim product not found');
+      return null;
+    }
+  }
+  public async getPimProducts() {
+    try {
+      const response = await erpApiClient.get('/Item');
+      const pimProducts = response.data.data;
+      return pimProducts;
+    } catch (error) {
+      throw error;
+    }
+  }
+  public async getPimProductByName(productName: string) {
+    try {
+      const response = await erpApiClient.get(`/Item/${productName}`);
+      const pimProduct = response.data.data;
+      return pimProduct;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async processPimProductConfiguratorSettings(
+    productData: any,
+    shopApiClient: any,
+  ) {
+    //return optionIds oder configuratorSettingIds
+    try {
+      const shopProductPropertyOptions: any = [];
+      if (productData.has_variants === 1) {
+        const pimProducts = await this.getPimProducts();
+
+        for (const item of pimProducts) {
+          const variantPimProduct = await this.getPimProductByName(item.name);
+
+          if (variantPimProduct.variant_of === productData.item_code) {
+            const shopProduct = await this.getShopProductByProductNumber(
+              productData.item_code,
+              shopApiClient,
+            );
+
+            for (const attribute of variantPimProduct.attributes) {
+              const option: any =
+                await this.propertiesService.getShopProductPropertyOption(
+                  attribute,
+                  shopApiClient,
+                );
+              if (shopProduct && option) {
+                const configuratorSetting: any =
+                  await this.configuratorSettingsService.getShopProductConfiguratorSettingByOptionId(
+                    shopProduct.id,
+                    option.id,
+                    shopApiClient,
+                  );
+                if (configuratorSetting) {
+                  shopProductPropertyOptions.push({
+                    id: configuratorSetting.id,
+                    optionId: option.id,
+                  });
+                } else {
+                  shopProductPropertyOptions.push({
+                    optionId: option.id,
+                  });
+                }
+              } else {
+                shopProductPropertyOptions.push({
+                  optionId: option.id,
+                });
+              }
+            }
+          }
+        }
+        return shopProductPropertyOptions;
+      }
+    } catch (error) {
+      console.log('Configurator Settings not found');
+      return null;
+    }
+  }
+  public async getChildrenBulk(
+    productData: any,
     erpShopId: string,
     shopApiClient: any,
   ) {
-    const deletedProducts = await this.getDeletedProducts(
-      erpShopId,
-      shopApiClient,
-    );
-
-    const productsBulk = [];
-    for (const deletedProduct of deletedProducts) {
-      const processedErpProduct = await this.deleteErpProduct(deletedProduct);
-      productsBulk.push(processedErpProduct);
-    }
-
-    return productsBulk;
-  }
-
-  public async getUuidByProductNumber(
-    productNumber: string,
-    shopApiClient: any,
-  ) {
     try {
-      const shopProduct = await this.getProductFromShop(
-        productNumber,
-        shopApiClient,
-      );
-      if (shopProduct) {
-        const uuid: string = shopProduct.id;
-
-        return uuid;
-      } else {
-        return null;
-      }
-    } catch (error) {
-      throw error;
-    }
-  }
-  public async getProductConfiguratorSetting(
-    productParentId: string,
-    // productId: string,
-    optionId: string,
-    erpShopId?: string,
-  ) {
-    try {
-      const shopApiClient = await this.createShopApiClientByShopId(erpShopId);
-
-      const responseConfigurator = await shopApiClient.get(
-        `/api/product-configurator-setting`,
-      );
-
-      let configuratorSettingId = '';
-      const productConfiguratorSettingList = responseConfigurator.data.data;
-
-      const parentId = productParentId;
-      for (const productConfiguratorSetting of productConfiguratorSettingList) {
-        if (
-          productConfiguratorSetting.optionId == optionId &&
-          productConfiguratorSetting.productId == parentId
-        ) {
-          configuratorSettingId = productConfiguratorSetting.id;
+      const pimProducts = await this.getPimProducts();
+      const children = [];
+      for (const item of pimProducts) {
+        const variantPimProduct = await this.getPimProductByName(item.name);
+        if (variantPimProduct.variant_of === productData.item_code) {
+          const shopProduct = await this.getShopProductByProductNumber(
+            variantPimProduct.item_code,
+            shopApiClient,
+          );
+          const child = {
+            id: (
+              await this.getShopProductByProductNumber(
+                variantPimProduct.item_code,
+                shopApiClient,
+              )
+            ).id,
+            price: [
+              {
+                currencyId: (
+                  await this.shopsService.getShopSalesChannelInfo(
+                    erpShopId,
+                    shopApiClient,
+                  )
+                ).currencyId,
+                gross: await this.getPimProductPrice(
+                  variantPimProduct,
+                  erpShopId,
+                ),
+                net:
+                  ((await this.getPimProductPrice(
+                    variantPimProduct,
+                    erpShopId,
+                  )) /
+                    119) *
+                  100,
+                linked: true,
+              },
+            ],
+            productNumber: variantPimProduct.name,
+            active: variantPimProduct.custom_active == 0 ? false : true,
+            manufacturerNumber: variantPimProduct.custom_manufacturer_number,
+            ean: variantPimProduct.custom_ean,
+            purchaseUnit: variantPimProduct.custom_purchase_unit,
+            // referenceUnit: variantPimProduct.custom_reference_unit,
+            markAsTopseller:
+              variantPimProduct.custom_mark_as_topseller == 0 ? false : true,
+            weight: variantPimProduct.custom_weight,
+            width: variantPimProduct.custom_width,
+            height: variantPimProduct.custom_height,
+            length: variantPimProduct.custom_length,
+            name: variantPimProduct.item_name,
+            keywords: variantPimProduct.custom_keywords,
+            description: variantPimProduct.description,
+            // packUnit: variantPimProduct.custom_pack_unit,
+            // packUnitPlural: variantPimProduct.custom_pack_unit_plural,
+            customFields: {
+              br_pim_modified: variantPimProduct.modified,
+            },
+            availableStock: variantPimProduct.custom_stock,
+            stock: variantPimProduct.custom_stock,
+            options:
+              await this.propertiesService.processPimProductPropertyOptions(
+                variantPimProduct,
+                shopApiClient,
+              ),
+            tags: await this.tagsService.processPimProductTags(
+              variantPimProduct,
+              shopProduct,
+              shopApiClient,
+            ),
+          };
+          children.push(child);
         }
       }
-
-      return configuratorSettingId;
+      return children;
     } catch (error) {
-      throw error;
+      console.log('Children not found');
+      return null;
     }
   }
 
-  public async getOptionListUuids(productNumber: string, shopApiClient: any) {
-    const productOptions = await this.getErpProductOptions(productNumber);
-    const result = [];
-
-    for (const option of productOptions) {
-      const propertyValue =
-        await this.propertiesService.getOrCreatePropertyGroupAndValue(
-          shopApiClient,
-          option.attribute,
-          option.attribute_value,
-        );
-
-      result.push({
-        id: propertyValue.id,
-        property_value: propertyValue.name,
-      });
-    }
-
-    return result;
-  }
-
-  public async getErpProductOptions(productNumber: string): Promise<any> {
+  public async processPimProductVisibilities(
+    productData: any,
+    erpShopId: string,
+    shopApiClient: any,
+  ) {
     try {
-      const erpProduct =
-        await this.getProductByProductNumberFromErp(productNumber);
-      const optionsList = erpProduct.attributes;
-      const options = optionsList.map((item) => ({
-        attribute: item.attribute,
-        attribute_value: item.attribute_value,
-      }));
-      return options;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async getProductsFromErp() {
-    try {
-      const response = await erpApiClient.get('/Item');
-      const erpProducts = response.data;
-      return erpProducts;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async getProductFromShops(productNumber: string) {
-    try {
-      const erpProduct =
-        await this.getProductByProductNumberFromErp(productNumber);
-      const shopsProduct = [];
-
-      const productShopList = erpProduct.custom_assigned_shops;
-
-      for (const shop of productShopList) {
-        const erpShopId = shop.shop;
-
-        const shopApiClient = await this.createShopApiClientByShopId(erpShopId);
-
-        const response = await shopApiClient.get(
-          `/api/product?filter[productNumber]=${productNumber}`,
-        );
-
-        const shopProduct = await response.data;
-        shopsProduct.push(shopProduct);
-      }
-
-      return shopsProduct;
-    } catch (error) {
-      throw error;
-    }
-  }
-  public async getProductFromShop(productNumber: string, shopApiClient: any) {
-    try {
-      const response = await shopApiClient.get(
-        `/api/product?filter[productNumber]=${productNumber}`,
+      const shopProduct = await this.getShopProductByProductNumber(
+        productData.item_code,
+        shopApiClient,
       );
 
-      const shopProduct = await response.data.data;
-      return shopProduct[0];
-    } catch (error) {
-      throw error;
-    }
-  }
+      if (shopProduct.id !== null) {
+        const shopProductVisibilitiesResponse = await shopApiClient.get(
+          `/api/product/${shopProduct.id}/visibilities`,
+        );
+        const shopProductVisibilities =
+          shopProductVisibilitiesResponse.data.data;
 
-  public async getEntity(
-    shopApiClient: any,
-    entityName: string,
-    apiPath: string,
-  ): Promise<boolean> {
-    const response = await shopApiClient.get(apiPath);
-    const entities = await response.data;
-
-    for (const entity of entities) {
-      if (entity.name === entityName) {
-        return entity;
+        const salesChannel = await this.shopsService.getShopSalesChannelInfo(
+          erpShopId,
+          shopApiClient,
+        );
+        for (const shopProductVisibility of shopProductVisibilities) {
+          if (shopProductVisibility.salesChannelId === salesChannel.id) {
+            return [
+              {
+                id: shopProductVisibility.id,
+                salesChannelId: salesChannel.id,
+                visibility: shopProductVisibility.visibility,
+              },
+            ];
+          } else {
+            return [
+              {
+                salesChannelId: salesChannel.id,
+                visibility: 30,
+              },
+            ];
+          }
+        }
+      } else {
+        const salesChannel = await this.shopsService.getShopSalesChannelInfo(
+          erpShopId,
+          shopApiClient,
+        );
+        return [
+          {
+            salesChannelId: salesChannel.id,
+            visibility: 30,
+          },
+        ];
       }
+    } catch (error) {
+      console.log('Visibilities not found');
+      return null;
     }
-
-    return null;
   }
 
-  public async assignPropertyGroupIdToPropertyValue(
+  public async getVariantListingConfig(productData: any, shopApiClient: any) {
+    try {
+      if (productData.has_variants === 1) {
+        const shopProduct = await this.getShopProductByProductNumber(
+          productData.item_code,
+          shopApiClient,
+        );
+        if (shopProduct.id !== null) {
+          return {
+            displayParent: shopProduct.variantListingConfig.displayParent,
+            mainVariantId: shopProduct.variantListingConfig.mainVariantId,
+            configuratorGroupConfig:
+              shopProduct.variantListingConfig.configuratorGroupConfig,
+          };
+        } else {
+          return {
+            displayParent: true,
+            mainVariantId: null,
+          };
+        }
+      }
+    } catch (error) {
+      console.log('Variant Listing Config not found');
+      return null;
+    }
+  }
+  public async createShopProductMedia(
+    pimProduct: any,
     shopApiClient: any,
-    propertyValueId: string,
-    propertyGroupId: string,
-  ): Promise<any> {
-    const data = {
-      groupId: propertyGroupId,
-    };
-
-    const response = await shopApiClient.patch(
-      `/api/property-group-option/${propertyValueId}`,
-      data,
-    );
-    return response;
+    erpShopId: string,
+  ) {
+    try {
+      const shopProduct = await this.getShopProductByProductNumber(
+        pimProduct.item_code,
+        shopApiClient,
+      );
+      const media = await this.mediaService.processPimProductMedia(
+        pimProduct,
+        shopProduct,
+        erpShopId,
+        shopApiClient,
+      );
+      return media;
+    } catch (error) {
+      console.log('Media not found');
+      return null;
+    }
   }
-
-  public async assignPropertyValueIdToProduct(
-    shopApiClient: any,
-    productId: string,
-    propertyValueId: string,
-  ): Promise<any> {
-    const data = {
-      propertyValueId: propertyValueId,
-    };
-
-    const response = await shopApiClient.patch(
-      `/api/product/${productId}`,
-      data,
-    );
-    return response;
-  }
-
   public async getModifiedProducts(erpShopId: string, shopApiClient: any) {
     try {
-      const responseERP = await erpApiClient.get('/Item');
-      const erpProducts = responseERP.data.data;
+      const response = await erpApiClient.get('/Item');
+      const pimProducts = response.data.data;
 
       const modifiedProducts: any = [];
 
-      for (const erpProduct of erpProducts) {
-        const erpProductComplete = await this.getProductByProductNumberFromErp(
-          erpProduct.name,
+      for (const pimProduct of pimProducts) {
+        const pimProductComplete = await this.getPimProductByName(
+          pimProduct.name,
         );
 
         const response = await shopApiClient.get(
-          `/api/product?filter[productNumber]=${erpProduct.name}`,
+          `/api/product?filter[productNumber]=${pimProduct.name}`,
         );
 
         const shopProduct = response.data.data;
 
-        erpProductComplete.uuid =
+        pimProductComplete.uuid =
           shopProduct.length !== 0 ? shopProduct[0].id : null;
 
-        const assignedShop = erpProductComplete.custom_assigned_shops.some(
+        const assignedShop = pimProductComplete.custom_assigned_shops.some(
           (objekt) => objekt.shop === erpShopId,
         );
 
         if (
           (shopProduct.length === 0 ||
-            erpProductComplete.modified !==
+            pimProductComplete.modified !==
               shopProduct[0].customFields?.br_pim_modified) &&
           assignedShop
         ) {
-          modifiedProducts.push(erpProductComplete);
+          modifiedProducts.push(pimProductComplete);
         }
       }
 
@@ -889,230 +588,48 @@ export class ProductsService {
       throw error;
     }
   }
-  public async getDeletedProducts(erpShopId: string, shopApiClient: any) {
+
+  public async getModifiedMainProducts(erpShopId: string) {
     try {
-      const responseShop = await shopApiClient.get(`/api/product`);
-      const shopProducts = responseShop.data.data;
+      const shopApiClient =
+        await this.shopsService.createShopApiClientByShopId(erpShopId);
+      const response = await erpApiClient.get('/Item');
+      const pimProducts = response.data.data;
 
-      const responseERP = await erpApiClient.get('/Item');
-      const erpProducts = responseERP.data.data;
-      const unassignedProducts = [];
-      // const deletedProducts: any = [];
-
-      for (const erpProduct of erpProducts) {
-        const erpProductComplete = await this.getProductByProductNumberFromErp(
-          erpProduct.name,
+      const modifiedMainProducts: Set<string> = new Set();
+      for (const pimProduct of pimProducts) {
+        let pimProductComplete = await this.getPimProductByName(
+          pimProduct.name,
         );
-        const assignedShop = erpProductComplete.custom_assigned_shops.some(
-          (objekt) => objekt.shop === erpShopId,
+
+        const response = await shopApiClient.get(
+          `/api/product?filter[productNumber]=${pimProduct.name}`,
         );
-        if (!assignedShop) {
-          unassignedProducts.push(erpProduct);
+
+        const shopProduct = response.data.data[0];
+        if (
+          shopProduct === undefined ||
+          pimProductComplete.modified !==
+            shopProduct.customFields?.br_pim_modified
+        ) {
+          if (pimProductComplete.variant_of) {
+            pimProductComplete = await this.getPimProductByName(
+              pimProductComplete.variant_of,
+            );
+          }
+          pimProductComplete.uuid =
+            shopProduct !== undefined ? shopProduct.id : null;
+
+          const assignedShop = pimProductComplete.custom_assigned_shops.find(
+            (objekt) => objekt.shop === erpShopId,
+          );
+
+          if (assignedShop) {
+            modifiedMainProducts.add(pimProductComplete.name);
+          }
         }
       }
-
-      // Funktion, die überprüft, ob zwei Objekte unterschiedlich sind
-      const isDeleted = (obj1, obj2) => obj1.productNumber === obj2.name;
-
-      // Filtert die Objekte, die in array1, aber nicht in array2 vorhanden sind
-      const deletedProducts = shopProducts.filter((obj1) =>
-        unassignedProducts.some((obj2) => isDeleted(obj1, obj2)),
-      );
-      return deletedProducts;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async getSalesChannelInfo(erpShopId: string, shopApiClient: any) {
-    try {
-      const erpShopData = await this.getShopApiDataByShopId(erpShopId);
-      const response = await shopApiClient.get(`/api/sales-channel`);
-      const salesChannels = await response.data.data;
-      for (const salesChannel of salesChannels) {
-        if (salesChannel.id === erpShopData.storefrontid) {
-          return salesChannel;
-        }
-      }
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  //TODO nicht für jeden shop sondern nur für DEN shop
-  public async getStandardTaxInfo(productNumber: string, shopApiClient: any) {
-    try {
-      const response = await shopApiClient.get(`/api/tax`);
-      const taxes = await response.data.data;
-      for (const tax of taxes) {
-        if (tax.position == 1 && tax.name == 'Standard rate') {
-          return tax.id;
-        }
-      }
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async removeTagsFromProduct(
-    shopApiClient: any,
-    productId: string,
-    tagId: string,
-  ): Promise<any> {
-    const response = await shopApiClient.delete(
-      `/api/product/${productId}/tags/${tagId}`,
-    );
-    return response;
-  }
-
-  // TODO Hier weitermachen
-
-  public async removePropertiesFromProduct(
-    shopApiClient: any,
-    productId: string,
-    propertyId: string,
-  ): Promise<any> {
-    const response = await shopApiClient.delete(
-      `/api/product/${productId}/properties/${propertyId}`,
-    );
-    return response;
-  }
-
-  // SHOPSERVICE
-  async getShopApiFileClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const shopApiFileClient = this.createShopApiFileClient(shopApiData);
-      return shopApiFileClient;
-    } catch (error) {
-      throw error;
-    }
-  }
-  async createShopApiFileClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const { shopurl, apikey, apisecret } = shopApiData;
-
-      const token = await this.getShopBearerToken(shopurl, apikey, apisecret);
-
-      const shopApiFileClient = axios.create({
-        baseURL: shopurl,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'image/jpg',
-          Authorization: `Bearer ${token}`,
-          extension: 'jpg',
-        },
-      });
-
-      return shopApiFileClient;
-    } catch (error) {
-      throw error;
-    }
-  }
-  async createShopApiFileClientByShopId(erpShopId: string) {
-    const shopApiData = await this.getShopApiDataByShopId(erpShopId);
-    return this.createShopApiFileClient(shopApiData);
-  }
-
-  async getShopApiClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const shopApiClient = this.createShopApiClient(shopApiData);
-      return shopApiClient;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getShopBearerToken(
-    shopUrl: string,
-    clientId: string,
-    clientSecret: string,
-  ): Promise<string> {
-    const options = {
-      method: 'POST',
-      url: shopUrl + '/api/oauth/token',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      data: {
-        grant_type: 'client_credentials',
-        client_id: clientId,
-        client_secret: clientSecret,
-      },
-    };
-
-    try {
-      const { data } = await axios.request(options);
-      return data.access_token;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async createShopApiClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const { shopurl, apikey, apisecret } = shopApiData;
-
-      const token = await this.getShopBearerToken(shopurl, apikey, apisecret);
-
-      const shopApiClient = axios.create({
-        baseURL: shopurl,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return shopApiClient;
-    } catch (error) {
-      throw error;
-    }
-  }
-  async createShopApiClientByShopId(erpShopId: string) {
-    const shopApiData = await this.getShopApiDataByShopId(erpShopId);
-    return this.createShopApiClient(shopApiData);
-  }
-
-  async getShopApiDataByShopId(shopId: string): Promise<any> {
-    try {
-      const response = await erpApiClient.get(`/Item%20Shop/${shopId}`);
-
-      const shopApiData = response.data.data;
-      return shopApiData;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getShopsFromErp() {
-    try {
-      const response = await erpApiClient.get('/Item%20Shop');
-      const erpShops = response.data;
-      return erpShops;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getShopFromErp(shopNumber: string) {
-    try {
-      const response = await erpApiClient.get(`/Item%20Shop/${shopNumber}`);
-      const erpShop = response.data.data;
-      return erpShop;
-    } catch (error) {
-      throw error;
-    }
-  }
-  //TODO SEHR WICHTIG
-  async patchShopProduct(shopApiClient: any, productId: string, data: any) {
-    try {
-      const response = await shopApiClient.patch(
-        `/api/product/${productId}`,
-        data,
-      );
-      const shopProduct = response.data.data;
-      return shopProduct;
+      return Array.from(modifiedMainProducts);
     } catch (error) {
       throw error;
     }

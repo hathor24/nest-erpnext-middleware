@@ -26,6 +26,22 @@ export class ManufacturersService {
     return manufacturerData;
   }
 
+  public async getShopManufacturerByName(
+    manufacturerName: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/product-manufacturer?filter[name]=${manufacturerName}`,
+      );
+      const manufacturerData = response.data.data[0];
+      return manufacturerData;
+    } catch (error) {
+      console.log('Manufacturer not found');
+      return null;
+    }
+  }
+
   public async deleteShopManufacturer(
     manufacturerId: string,
     shopApiClient: any,
@@ -75,5 +91,24 @@ export class ManufacturersService {
     const updatedManufacturer = response.data.data;
 
     return updatedManufacturer;
+  }
+
+  public async getOrCreateShopManufacturer(
+    manufacturerName: string,
+    shopApiClient: any,
+  ) {
+    let manufacturer = await this.getShopManufacturerByName(
+      manufacturerName,
+      shopApiClient,
+    );
+
+    if (!manufacturer) {
+      manufacturer = await this.createShopManufacturer(
+        manufacturerName,
+        shopApiClient,
+      );
+    }
+
+    return manufacturer;
   }
 }

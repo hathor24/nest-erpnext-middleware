@@ -37,6 +37,42 @@ export class PropertiesService {
     return propertyValueData;
   }
 
+  public async getShopProductPropertyOption(
+    attribute: any,
+    shopApiClient: any,
+  ) {
+    try {
+      let shopPropertyGroupData = await this.getShopPropertyGroupByName(
+        shopApiClient,
+        attribute.attribute,
+      );
+      if (!shopPropertyGroupData) {
+        shopPropertyGroupData = await this.createShopPropertyGroup(
+          attribute.attribute,
+          shopApiClient,
+        );
+      }
+      let shopPropertyGroupOptionData =
+        await this.getShopPropertyGroupOptionByName(
+          shopApiClient,
+          attribute.attribute_value,
+          shopPropertyGroupData.id,
+        );
+      if (!shopPropertyGroupOptionData) {
+        shopPropertyGroupOptionData =
+          await this.createShopPropertyGroupOptionByGroupId(
+            shopApiClient,
+            attribute.attribute_value,
+            shopPropertyGroupData.id,
+          );
+      }
+      return shopPropertyGroupOptionData;
+    } catch (error) {
+      // console.log(error);
+      return null;
+    }
+  }
+
   public async getOrCreatePropertyGroupAndValue(
     shopApiClient: ShopApiClient,
     propertyGroupName: string,
@@ -230,6 +266,7 @@ export class PropertiesService {
     return deletedPropertyGroupOption;
   }
 
+  //Autovervollständigung
   public async createShopPropertyGroupOption(
     propertyGroupOptionName: string,
     shopApiClient: any,
@@ -290,8 +327,127 @@ export class PropertiesService {
 
       return updatedPropertyGroupOption;
     } catch (error) {
-      console.log(error.response.data);
+      // console.log(error.response.data);
       throw error;
     }
+  }
+  public async processPimProductProperties(
+    productData: any,
+    shopProduct: any,
+    shopApiClient: any,
+  ) {
+    try {
+      const shopProductProperties: any = [];
+      const pimProductPropertyIds: any = [];
+      const pimProductProperties: any = productData.custom_properties;
+
+      for (const pimProductProperty of pimProductProperties) {
+        const shopPropertyGroupData = await this.getShopPropertyGroupByName(
+          shopApiClient,
+          pimProductProperty.property,
+        );
+
+        if (shopPropertyGroupData != null) {
+          const shopPropertyGroupOptionData =
+            await this.getShopPropertyGroupOptionByName(
+              shopApiClient,
+              pimProductProperty.property_value,
+              shopPropertyGroupData.id,
+            );
+          if (shopPropertyGroupOptionData != null) {
+            const shopPropertyOption = {
+              id: shopPropertyGroupOptionData.id,
+              name: shopPropertyGroupOptionData.name,
+              groupId: shopPropertyGroupOptionData.groupId,
+            };
+
+            shopProductProperties.push(shopPropertyOption);
+            pimProductPropertyIds.push(shopPropertyGroupOptionData.id);
+          } else {
+            const createdPropertyGroupOption =
+              await this.createShopPropertyGroupOptionByGroupId(
+                shopApiClient,
+                pimProductProperty.property_value,
+                shopPropertyGroupData.id,
+              );
+
+            const shopPropertyOption = {
+              id: createdPropertyGroupOption.id,
+              name: createdPropertyGroupOption.name,
+              groupId: createdPropertyGroupOption.groupId,
+            };
+            shopProductProperties.push(shopPropertyOption);
+          }
+        } else {
+          const createdPropertyGroup = await this.createShopPropertyGroup(
+            pimProductProperty.property,
+            shopApiClient,
+          );
+
+          const createdPropertyGroupOption =
+            await this.createShopPropertyGroupOptionByGroupId(
+              shopApiClient,
+              pimProductProperty.property_value,
+              createdPropertyGroup.id,
+            );
+
+          const shopPropertyOption = {
+            id: createdPropertyGroupOption.id,
+            name: createdPropertyGroupOption.name,
+            groupId: createdPropertyGroup.id,
+          };
+          shopProductProperties.push(shopPropertyOption);
+        }
+      }
+      if (shopProduct) {
+        for (const shopProductPropertyId of shopProduct.propertyIds) {
+          if (
+            !pimProductPropertyIds.includes(shopProductPropertyId) &&
+            shopProduct.parentId == null
+          ) {
+            await this.removePropertiesFromProduct(
+              shopApiClient,
+              shopProduct.id,
+              shopProductPropertyId,
+            );
+          }
+        }
+      }
+      return shopProductProperties;
+    } catch (error) {
+      // console.log(error);
+      return null;
+    }
+  }
+  public async processPimProductPropertyOptions(
+    productData: any,
+    shopApiClient: any,
+  ) {
+    try {
+      if (!productData.variant_of) return null;
+      const shopProductPropertyOptions: any = [];
+      for (const attribute of productData.attributes) {
+        const option: any = await this.getShopProductPropertyOption(
+          attribute,
+          shopApiClient,
+        );
+        shopProductPropertyOptions.push({ id: option.id });
+      }
+      return shopProductPropertyOptions;
+    } catch (error) {
+      // console.log(error);
+      return null;
+    }
+  }
+
+  public async removePropertiesFromProduct(
+    shopApiClient: any,
+    productId: string,
+    propertyId: string,
+  ): Promise<any> {
+    const response = await shopApiClient.delete(
+      `/api/product/${productId}/properties/${propertyId}`,
+    );
+    return response;
   }
 }

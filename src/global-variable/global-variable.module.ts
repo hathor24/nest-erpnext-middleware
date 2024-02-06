@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { GlobalVariableService } from './global-variable.service';
+// import { GlobalVariableService } from './global-variable.service';
 import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [CommonModule],
-  providers: [GlobalVariableService],
+  // providers: [GlobalVariableService],
 })
 export class GlobalVariableModule {}

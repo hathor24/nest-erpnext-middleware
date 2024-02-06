@@ -95,4 +95,39 @@ export class ShopsService {
       throw error;
     }
   }
+  public async getShopSalesChannelInfo(erpShopId: string, shopApiClient: any) {
+    try {
+      const erpShopData = await this.getShopApiDataByShopId(erpShopId);
+
+      const response = await shopApiClient.get(`/api/sales-channel`);
+
+      const salesChannels = await response.data.data;
+
+      for (const salesChannel of salesChannels) {
+        if (salesChannel.id === erpShopData.storefrontid) {
+          return salesChannel;
+        }
+      }
+    } catch (error) {
+      console.log('Sales channel not found');
+      return null;
+    }
+  }
+
+  public async getShopStandardTaxInfo(shopApiClient: any) {
+    try {
+      const response = await shopApiClient.get(`/api/tax`);
+
+      const taxes = await response.data.data;
+
+      for (const tax of taxes) {
+        if (tax.position == 1 && tax.name == 'Standard rate') {
+          return tax;
+        }
+      }
+    } catch (error) {
+      console.log('Standard tax not found');
+      return null;
+    }
+  }
 }

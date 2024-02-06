@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { PropertiesService } from './properties.service';
+// import { PropertiesService } from './properties.service';
 import { PropertiesController } from './properties.controller';
-import { CommonModule } from 'src/common/common.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
-  providers: [PropertiesService],
+  // providers: [PropertiesService],
   imports: [CommonModule],
   controllers: [PropertiesController],
 })

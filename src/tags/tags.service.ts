@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
+// import { ProductsService } from '../common/common.module';
 
 @Injectable()
 export class TagsService {
-  constructor() {}
+  // constructor(private readonly productsService: ProductsService) {}
   public async getShopTags(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/tag`);
@@ -69,7 +70,87 @@ export class TagsService {
         return tag;
       }
     }
-
     return null;
+  }
+
+  public async processPimProductTags(
+    productData: any,
+    shopProduct: any,
+    shopApiClient: any,
+  ) {
+    try {
+      const shopProductTags: any = [];
+      const pimProductTags: any = {
+        frostWarning: productData.custom_frost_warning,
+        bucket: productData.custom_bucket,
+        floor: productData.custom_floor,
+        hauler: productData.custom_hauler,
+        bulk: productData.custom_bulk,
+        vegan: productData.custom_vegan,
+        noDiscount: productData.custom_no_discount,
+      };
+      if (
+        Object.values(pimProductTags).every((value) => value === 0) &&
+        shopProduct &&
+        shopProduct.tagIds.length === 0
+      ) {
+        return null;
+      }
+
+      for (const pimProductTag in pimProductTags) {
+        const tagData: any = await this.getShopTagByName(
+          shopApiClient,
+          pimProductTag,
+        );
+
+        if (pimProductTags[pimProductTag] == 1) {
+          if (tagData !== null) {
+            const tagInfo = {
+              id: tagData.id,
+              name: tagData.name,
+            };
+
+            shopProductTags.push(tagInfo);
+          } else {
+            const createdTag = await this.createShopTag(
+              pimProductTag,
+              shopApiClient,
+            );
+            const tagInfo = {
+              id: createdTag.id,
+              name: createdTag.name,
+            };
+
+            shopProductTags.push(tagInfo);
+          }
+        } else if (
+          pimProductTags[pimProductTag] == 0 &&
+          tagData &&
+          shopProduct &&
+          shopProduct.tagIds &&
+          shopProduct.tagIds.includes(tagData.id)
+        ) {
+          await this.removeTagsFromProduct(
+            shopApiClient,
+            shopProduct.id,
+            tagData.id,
+          );
+        }
+      }
+      return shopProductTags;
+    } catch (error) {
+      console.log('Error processing tags');
+      return null;
+    }
+  }
+  public async removeTagsFromProduct(
+    shopApiClient: any,
+    productId: string,
+    tagId: string,
+  ): Promise<any> {
+    const response = await shopApiClient.delete(
+      `/api/product/${productId}/tags/${tagId}`,
+    );
+    return response;
   }
 }
