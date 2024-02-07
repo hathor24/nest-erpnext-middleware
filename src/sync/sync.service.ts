@@ -30,10 +30,11 @@ export class SyncService {
   public async syncProductMediaToShopById(
     productNumber: string,
     pimShopId: string,
+    shopApiClient: any,
   ) {
     try {
-      const shopApiClient =
-        await this.shopsService.createShopApiClientByShopId(pimShopId);
+      // const shopApiClient =
+      //   await this.shopsService.createShopApiClientByShopId(pimShopId);
       const pimProduct =
         await this.productsService.getPimProductByName(productNumber);
       const createdShopProductMedia =
@@ -49,19 +50,36 @@ export class SyncService {
   }
   public async syncShopById(pimShopId: string) {
     try {
+      const shopApiClient =
+        await this.shopsService.createShopApiClientByShopId(pimShopId);
+
       const modifiedMainProducts =
-        await this.productsService.getModifiedMainProducts(pimShopId);
-      // console.log(modifiedMainProducts);
+        await this.productsService.getModifiedMainProducts(
+          pimShopId,
+          shopApiClient,
+        );
+      const modifiedProducts = await this.productsService.getModifiedProducts(
+        pimShopId,
+        shopApiClient,
+      );
+
       const completelyCreatedShopProducts = [];
+
       for (const modifiedMainProduct of modifiedMainProducts) {
         const createdShopProduct = await this.syncProductToShopById(
           modifiedMainProduct,
           pimShopId,
         );
         completelyCreatedShopProducts.push(createdShopProduct);
+      }
+
+      console.log('packt es das?', modifiedProducts);
+
+      for (const modifiedProduct of modifiedProducts) {
         const createdShopProductMedia = await this.syncProductMediaToShopById(
-          modifiedMainProduct,
+          modifiedProduct,
           pimShopId,
+          shopApiClient,
         );
         completelyCreatedShopProducts.push(createdShopProductMedia);
       }

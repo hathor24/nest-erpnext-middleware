@@ -97,7 +97,6 @@ export class ProductsService {
         /* required */
         taxId: (await this.shopsService.getShopStandardTaxInfo(shopApiClient))
           .id,
-        // coverId: await coverId(),
         /* required */
         price: [
           {
@@ -161,7 +160,6 @@ export class ProductsService {
           erpShopId,
           shopApiClient,
         ),
-        // media: await media(shopApiClient, productData),
 
         configuratorSettings: await this.processPimProductConfiguratorSettings(
           productData,
@@ -554,7 +552,6 @@ export class ProductsService {
       const pimProducts = response.data.data;
 
       const modifiedProducts: any = [];
-
       for (const pimProduct of pimProducts) {
         const pimProductComplete = await this.getPimProductByName(
           pimProduct.name,
@@ -563,36 +560,32 @@ export class ProductsService {
         const response = await shopApiClient.get(
           `/api/product?filter[productNumber]=${pimProduct.name}`,
         );
-
-        const shopProduct = response.data.data;
+        const shopProduct = response.data.data[0];
 
         pimProductComplete.uuid =
-          shopProduct.length !== 0 ? shopProduct[0].id : null;
+          shopProduct != undefined ? shopProduct.id : null;
 
         const assignedShop = pimProductComplete.custom_assigned_shops.some(
           (objekt) => objekt.shop === erpShopId,
         );
 
         if (
-          (shopProduct.length === 0 ||
+          (shopProduct == undefined ||
             pimProductComplete.modified !==
-              shopProduct[0].customFields?.br_pim_modified) &&
+              shopProduct?.customFields?.br_pim_modified) &&
           assignedShop
         ) {
-          modifiedProducts.push(pimProductComplete);
+          modifiedProducts.push(pimProductComplete.name);
         }
       }
-
       return modifiedProducts;
     } catch (error) {
       throw error;
     }
   }
 
-  public async getModifiedMainProducts(erpShopId: string) {
+  public async getModifiedMainProducts(erpShopId: string, shopApiClient: any) {
     try {
-      const shopApiClient =
-        await this.shopsService.createShopApiClientByShopId(erpShopId);
       const response = await erpApiClient.get('/Item');
       const pimProducts = response.data.data;
 
@@ -610,7 +603,7 @@ export class ProductsService {
         if (
           shopProduct === undefined ||
           pimProductComplete.modified !==
-            shopProduct.customFields?.br_pim_modified
+            shopProduct?.customFields?.br_pim_modified
         ) {
           if (pimProductComplete.variant_of) {
             pimProductComplete = await this.getPimProductByName(

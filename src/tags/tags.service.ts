@@ -89,10 +89,11 @@ export class TagsService {
         vegan: productData.custom_vegan,
         noDiscount: productData.custom_no_discount,
       };
+
       if (
         Object.values(pimProductTags).every((value) => value === 0) &&
         shopProduct &&
-        shopProduct.tagIds.length === 0
+        shopProduct.tagIds == null
       ) {
         return null;
       }

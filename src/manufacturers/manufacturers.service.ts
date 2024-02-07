@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ManufacturersService {
@@ -37,6 +37,8 @@ export class ManufacturersService {
       const manufacturerData = response.data.data[0];
       return manufacturerData;
     } catch (error) {
+      throw new HttpException('Manufacturer not found', HttpStatus.NOT_FOUND);
+
       console.log('Manufacturer not found');
       return null;
     }
@@ -58,22 +60,29 @@ export class ManufacturersService {
     manufacturerName: string,
     shopApiClient: any,
   ) {
-    const allManufacturersData = await this.getShopManufacturers(shopApiClient);
-    const manufacturerExists = allManufacturersData.some(
-      (obj) => obj.name === manufacturerName,
-    );
-    if (manufacturerExists) {
-      console.log('Manufacturer already exists');
-    } else {
-      const response = await shopApiClient.post(
-        '/api/product-manufacturer?_response=basic',
-        {
-          name: manufacturerName,
-        },
+    try {
+      const manufacturer = await this.getShopManufacturerByName(
+        manufacturerName,
+        shopApiClient,
       );
-      const createdManufacturer = response.data.data;
-
-      return createdManufacturer;
+      if (manufacturer) {
+        throw new HttpException(
+          'Manufacturer already exists',
+          HttpStatus.CONFLICT,
+        );
+      } else {
+        const response = await shopApiClient.post(
+          '/api/product-manufacturer?_response=basic',
+          {
+            name: manufacturerName,
+          },
+        );
+        const createdManufacturer = response.data.data;
+        return createdManufacturer;
+      }
+    } catch (error) {
+      console.error('Error creating manufacturer:', error);
+      throw error;
     }
   }
 
