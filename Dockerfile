@@ -19,7 +19,7 @@ COPY . .
 # Creates a "dist" folder with the production build
 RUN npm run build
 
-# Expose the port on which the app will run
+# Expose the port on which the app will run 
 EXPOSE 3001
 
 # Start the server using the production build
