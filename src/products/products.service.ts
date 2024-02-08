@@ -165,11 +165,10 @@ export class ProductsService {
           productData,
           shopApiClient,
         ),
-        //für parent
         options: await this.propertiesService.processPimProductPropertyOptions(
           productData,
           shopApiClient,
-        ), //für children zugehörige option
+        ),
         properties: await this.propertiesService.processPimProductProperties(
           productData,
           shopProduct,
@@ -181,8 +180,7 @@ export class ProductsService {
           shopApiClient,
         ),
       };
-      // console.log(data);
-      // throw 'end of createShopProduct';
+
       if (shopProduct !== undefined) {
         const response = await shopApiClient.patch(
           `/api/product/${shopProduct.id}?_response=basic`,
@@ -263,11 +261,10 @@ export class ProductsService {
     }
   }
 
-  //überprüfen, war nur autovervollständigung
   public async getShopProductParent(productData: any, shopApiClient: any) {
     try {
       const response = await shopApiClient.get(
-        `/api/product/${productData.parentId}`,
+        `/api/product/${productData.variant_of}`,
       );
       const parentProduct = response.data.data;
       return parentProduct;
@@ -312,7 +309,6 @@ export class ProductsService {
     productData: any,
     shopApiClient: any,
   ) {
-    //return optionIds oder configuratorSettingIds
     try {
       const shopProductPropertyOptions: any = [];
       if (productData.has_variants === 1) {

@@ -90,7 +90,6 @@ export class MediaService {
       media: [
         {
           id: productMediaId,
-          //   productId: productId,
 
           media: {
             id: mediaId,
@@ -107,7 +106,6 @@ export class MediaService {
     mediaObjectId: string,
     mediaRessourceUrl: string,
     erpShopId: string,
-    // shopApiClient: any,
   ) {
     try {
       const imgUrl = mediaRessourceUrl.replace(/ /g, '%20');
@@ -122,9 +120,6 @@ export class MediaService {
         `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg`,
         binaryFileData,
       );
-      //   const responseData = response.config.data;
-      //   console.log('responseData', responseData);
-      //   return responseData;
     } catch (error) {
       throw error;
       return null;
@@ -157,7 +152,6 @@ export class MediaService {
       const shopApiFileClient = axios.create({
         baseURL: shopurl,
         headers: {
-          //   Accept: 'application/json',
           'Content-Type': 'image/jpg',
           Authorization: `Bearer ${token}`,
           extension: 'jpg',

@@ -33,8 +33,6 @@ export class SyncService {
     shopApiClient: any,
   ) {
     try {
-      // const shopApiClient =
-      //   await this.shopsService.createShopApiClientByShopId(pimShopId);
       const pimProduct =
         await this.productsService.getPimProductByName(productNumber);
       const createdShopProductMedia =

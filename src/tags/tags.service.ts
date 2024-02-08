@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
-// import { ProductsService } from '../common/common.module';
 
 @Injectable()
 export class TagsService {
-  // constructor(private readonly productsService: ProductsService) {}
   public async getShopTags(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/tag`);

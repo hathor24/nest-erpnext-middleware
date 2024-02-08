@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GlobalVariableService } from '../global-variable/global-variable.service';
+
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { MediaService } from '../media/media.service';
 import { ProductsService } from '../products/products.service';
@@ -12,7 +12,6 @@ import { ConfiguratorSettingsService } from '../configurator-settings/configurat
 
 @Module({
   providers: [
-    GlobalVariableService,
     ManufacturersService,
     MediaService,
     ProductsService,
@@ -24,7 +23,6 @@ import { ConfiguratorSettingsService } from '../configurator-settings/configurat
     ConfiguratorSettingsService,
   ],
   exports: [
-    GlobalVariableService,
     ManufacturersService,
     MediaService,
     ProductsService,
@@ -36,5 +34,5 @@ import { ConfiguratorSettingsService } from '../configurator-settings/configurat
     ConfiguratorSettingsService,
   ],
 })
-// export { GlobalVariableService, ManufacturersService, MediaService, ProductsService, PropertiesService, ShopsService, SyncService, TagsService, UnitsService,}
+// export {  ManufacturersService, MediaService, ProductsService, PropertiesService, ShopsService, SyncService, TagsService, UnitsService,}
 export class CommonModule {}
