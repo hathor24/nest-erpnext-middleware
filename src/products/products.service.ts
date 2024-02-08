@@ -250,6 +250,18 @@ export class ProductsService {
       return null;
     }
   }
+  public async getPimProductShops(productData: any) {
+    try {
+      const shopsIds = [];
+      for (const shop of productData.custom_assigned_shops) {
+        shopsIds.push(shop.shop);
+      }
+      return shopsIds;
+    } catch (error) {
+      console.log('Product shops not found');
+      return null;
+    }
+  }
 
   //überprüfen, war nur autovervollständigung
   public async getShopProductParent(productData: any, shopApiClient: any) {

@@ -6,14 +6,14 @@ export class ShopsController {
   constructor(private readonly shopsService: ShopsService) {}
 
   @Get('/erp')
-  async getShopsFromErp() {
-    const erpShops = await this.shopsService.getShopsFromErp();
+  async getShopsFromPim() {
+    const erpShops = await this.shopsService.getShopsFromPim();
     return erpShops;
   }
 
   @Get('/erp/:shopNumber')
-  async getShopFromERP(@Param('shopNumber') shopNumber: string) {
-    const erpShop = await this.shopsService.getShopFromErp(shopNumber);
+  async getShopFromPim(@Param('shopNumber') shopNumber: string) {
+    const erpShop = await this.shopsService.getShopFromPim(shopNumber);
     return erpShop;
   }
 }

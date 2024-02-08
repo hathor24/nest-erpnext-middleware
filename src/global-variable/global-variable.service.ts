@@ -5,5 +5,5 @@ import { ShopsService } from '../shops/shops.service';
 export class GlobalVariableService {
   constructor(private readonly shopsService: ShopsService) {}
   public shopApiClient: any =
-    this.shopsService.createShopApiClientByShopId('e1f90c392b');
+    this.shopsService.createShopApiClientByShopId('0d2c0da098');
 }

@@ -73,8 +73,6 @@ export class SyncService {
         completelyCreatedShopProducts.push(createdShopProduct);
       }
 
-      console.log('packt es das?', modifiedProducts);
-
       for (const modifiedProduct of modifiedProducts) {
         const createdShopProductMedia = await this.syncProductMediaToShopById(
           modifiedProduct,

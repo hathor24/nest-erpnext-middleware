@@ -3,7 +3,7 @@ import erpFileClient from '../api/erp-file-client';
 import axios, { AxiosInstance } from 'axios';
 import erpApiClient from '../api/erp-api-client';
 import { v5 as uuidv5 } from 'uuid';
-
+//TODO Fix mediaRemoveFromProduct
 @Injectable()
 export class MediaService {
   public async getShopMedia(shopApiClient: any) {

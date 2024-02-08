@@ -76,17 +76,17 @@ export class ShopsService {
     }
   }
 
-  async getShopsFromErp() {
+  async getShopsFromPim() {
     try {
       const response = await erpApiClient.get('/Item%20Shop');
-      const erpShops = response.data;
+      const erpShops = response.data.data;
       return erpShops;
     } catch (error) {
       throw error;
     }
   }
 
-  async getShopFromErp(shopNumber: string) {
+  async getShopFromPim(shopNumber: string) {
     try {
       const response = await erpApiClient.get(`/Item%20Shop/${shopNumber}`);
       const erpShop = response.data.data;
