@@ -83,21 +83,26 @@ export class MediaService {
     position: number,
     shopApiClient: any,
   ) {
-    const response = await shopApiClient.patch(`/api/product/${productId}`, {
-      media: [
-        {
-          id: productMediaId,
+    try {
+      const response = await shopApiClient.patch(`/api/product/${productId}`, {
+        media: [
+          {
+            id: productMediaId,
 
-          media: {
-            id: mediaId,
-            position: position,
+            media: {
+              id: mediaId,
+              position: position,
+              mediaFolderId: '7fd73faecba94c45946f120aff7d5998',
+            },
           },
-        },
-      ],
-    });
-    const createdAssociation = response.data;
+        ],
+      });
+      const createdAssociation = response.data;
 
-    return createdAssociation;
+      return createdAssociation;
+    } catch (error) {
+      console.log(error.response.data.errors);
+    }
   }
 
   public async attachMediaRessourceToMediaObject(

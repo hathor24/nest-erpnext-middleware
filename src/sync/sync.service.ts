@@ -22,9 +22,9 @@ export class SyncService {
         shopApiClient,
       );
 
-      if (!isModified) {
-        return null;
-      }
+      // if (!isModified) {
+      //   return null;
+      // }
 
       if (pimProduct.hasOwnProperty('variant_of')) {
         const pimProductParent = await this.productsService.getPimProductByName(
