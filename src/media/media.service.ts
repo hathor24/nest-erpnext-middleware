@@ -3,7 +3,7 @@ import erpFileClient from '../api/erp-file-client';
 import axios, { AxiosInstance } from 'axios';
 import erpApiClient from '../api/erp-api-client';
 import { v5 as uuidv5 } from 'uuid';
-//TODO Fix mediaRemoveFromProduct
+
 @Injectable()
 export class MediaService {
   public async getShopMedia(shopApiClient: any) {
@@ -55,6 +55,7 @@ export class MediaService {
       return createdMedia;
     }
   }
+
   public async setCoverImage(
     imageId: string,
     productId: string,
@@ -74,10 +75,6 @@ export class MediaService {
       return null;
     }
   }
-
-  // public async getCoverImage(imageId: string, shopApiClient: any) {
-  //   return null;
-  // }
 
   public async createProductMediaAssociation(
     productMediaId: string,
@@ -102,6 +99,7 @@ export class MediaService {
 
     return createdAssociation;
   }
+
   public async attachMediaRessourceToMediaObject(
     mediaObjectId: string,
     mediaRessourceUrl: string,
@@ -125,6 +123,7 @@ export class MediaService {
       return null;
     }
   }
+
   public async removeMediaFromProduct(
     shopApiClient: any,
     productId: string,
@@ -163,6 +162,7 @@ export class MediaService {
       throw error;
     }
   }
+
   async createShopApiFileClientByShopId(erpShopId: string) {
     const shopApiData = await this.getShopApiDataByShopId(erpShopId);
     return this.createShopApiFileClient(shopApiData);
@@ -176,6 +176,7 @@ export class MediaService {
       throw error;
     }
   }
+
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
       const response = await erpApiClient.get(`/Item%20Shop/${shopId}`);
@@ -186,6 +187,7 @@ export class MediaService {
       throw error;
     }
   }
+
   async getShopBearerToken(
     shopUrl: string,
     clientId: string,
@@ -212,8 +214,9 @@ export class MediaService {
       throw error;
     }
   }
+
   public async processPimProductMedia(
-    productData: any,
+    pimProduct: any,
     shopProduct: any,
     erpShopId: string,
     shopApiClient: any,
@@ -221,30 +224,29 @@ export class MediaService {
     try {
       const shopProductMediaList: any = [];
       const pimProductMediaAssignments: any = {
-        coverImage: productData.image,
-        image01: productData.custom_attachimg01,
-        image02: productData.custom_attachimg02,
-        image03: productData.custom_attachimg03,
-        image04: productData.custom_attachimg04,
-        image05: productData.custom_attachimg05,
-        image06: productData.custom_attachimg06,
-        image07: productData.custom_attachimg07,
-        image08: productData.custom_attachimg08,
+        coverImage: pimProduct.image,
+        image01: pimProduct.custom_attachimg01,
+        image02: pimProduct.custom_attachimg02,
+        image03: pimProduct.custom_attachimg03,
+        image04: pimProduct.custom_attachimg04,
+        image05: pimProduct.custom_attachimg05,
+        image06: pimProduct.custom_attachimg06,
+        image07: pimProduct.custom_attachimg07,
+        image08: pimProduct.custom_attachimg08,
       };
 
       const allValuesNull = Object.values(pimProductMediaAssignments).every(
-        (value) => value === null,
+        (value) => value == false,
       );
 
       if (allValuesNull) {
         return null;
       }
       for (const pimProductMediaAssignment in pimProductMediaAssignments) {
-        if (
-          pimProductMediaAssignments[pimProductMediaAssignment] == undefined
-        ) {
+        if (!pimProductMediaAssignments[pimProductMediaAssignment]) {
           continue;
         }
+
         const productMediaId = uuidv5(
           pimProductMediaAssignments[pimProductMediaAssignment],
           '1b671a64-40d5-491e-99b0-da01ff1f3341',
@@ -254,10 +256,12 @@ export class MediaService {
           productMediaId,
           '1b671a64-40d5-491e-99b0-da01ff1f3341',
         ).replace(/-/g, '');
+
         const mediaData: any = await this.getShopMediaById(
           mediaId,
           shopApiClient,
         );
+
         if (pimProductMediaAssignment === 'coverImage') {
           await this.setCoverImage(
             productMediaId,
@@ -271,7 +275,9 @@ export class MediaService {
             const mediaInfo = {
               id: mediaData.id,
             };
+
             shopProductMediaList.push(mediaInfo);
+
             continue;
           } else {
             if (
@@ -283,6 +289,7 @@ export class MediaService {
                 Object.keys(pimProductMediaAssignments).indexOf(
                   pimProductMediaAssignment,
                 ) + 1;
+
               await this.createProductMediaAssociation(
                 productMediaId,
                 shopProduct.id,
@@ -300,24 +307,81 @@ export class MediaService {
               erpShopId,
             );
           }
-        } else if (
-          pimProductMediaAssignments[pimProductMediaAssignment] == null &&
-          mediaData &&
-          shopProduct &&
-          shopProduct.mediaIds &&
-          shopProduct.mediaIds.includes(mediaData.id)
-        ) {
-          await this.removeMediaFromProduct(
-            shopApiClient,
-            shopProduct.id,
-            mediaData.id,
-          );
         }
       }
       return shopProductMediaList;
     } catch (error) {
       console.log('Error processing media', error);
       return null;
+    }
+  }
+
+  public async removeShopProductMedia(
+    shopProduct: any,
+    pimProduct: any,
+    shopApiClient: any,
+  ) {
+    try {
+      if (!shopProduct) {
+        return null;
+      }
+      const pimProductMediaAssignments: any = {
+        coverImage: pimProduct.image,
+        image01: pimProduct.custom_attachimg01,
+        image02: pimProduct.custom_attachimg02,
+        image03: pimProduct.custom_attachimg03,
+        image04: pimProduct.custom_attachimg04,
+        image05: pimProduct.custom_attachimg05,
+        image06: pimProduct.custom_attachimg06,
+        image07: pimProduct.custom_attachimg07,
+        image08: pimProduct.custom_attachimg08,
+      };
+      const productMediaData = await this.getMediaFromProduct(
+        shopProduct.id,
+        shopApiClient,
+      );
+      const shopProductMediaIds = productMediaData.map((media) => media.id);
+
+      const pimProductMediaUrls = Object.values(
+        pimProductMediaAssignments,
+      ).filter((value) => value != false && value !== undefined);
+
+      const pimProductMediaIds = pimProductMediaUrls.map((url) => {
+        const productMediaId = uuidv5(
+          url,
+          '1b671a64-40d5-491e-99b0-da01ff1f3341',
+        ).replace(/-/g, '');
+        return productMediaId;
+      });
+
+      const deletedMediaIds = shopProductMediaIds.filter(
+        (media) => !pimProductMediaIds.includes(media),
+      );
+
+      // console.log('shopProductMediaIds', shopProductMediaIds);
+      // console.log('pimProductMediaIds', pimProductMediaIds);
+
+      // console.log('deletedMediaIds', deletedMediaIds);
+
+      for (const deletedMediaId of deletedMediaIds) {
+        await shopApiClient.delete(
+          `/api/product/${shopProduct.id}/media/${deletedMediaId}`,
+        );
+      }
+    } catch (error) {
+      console.log('Error removing media', error);
+    }
+  }
+
+  public async getMediaFromProduct(productId: string, shopApiClient: any) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/product/${productId}/media`,
+      );
+      const mediaData = await response.data.data;
+      return mediaData;
+    } catch (error) {
+      throw error;
     }
   }
 }

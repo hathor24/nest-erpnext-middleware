@@ -72,20 +72,20 @@ export class TagsService {
   }
 
   public async processPimProductTags(
-    productData: any,
+    pimProduct: any,
     shopProduct: any,
     shopApiClient: any,
   ) {
     try {
       const shopProductTags: any = [];
       const pimProductTags: any = {
-        frostWarning: productData.custom_frost_warning,
-        bucket: productData.custom_bucket,
-        floor: productData.custom_floor,
-        hauler: productData.custom_hauler,
-        bulk: productData.custom_bulk,
-        vegan: productData.custom_vegan,
-        noDiscount: productData.custom_no_discount,
+        frostWarning: pimProduct.custom_frost_warning,
+        bucket: pimProduct.custom_bucket,
+        floor: pimProduct.custom_floor,
+        hauler: pimProduct.custom_hauler,
+        bulk: pimProduct.custom_bulk,
+        vegan: pimProduct.custom_vegan,
+        noDiscount: pimProduct.custom_no_discount,
       };
 
       if (

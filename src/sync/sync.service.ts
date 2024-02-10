@@ -11,22 +11,54 @@ export class SyncService {
     private readonly shopsService: ShopsService,
   ) {}
 
-  public async syncProductToShopById(productNumber: string, erpShopId: string) {
+  public async syncProductToShopById(pimProduct: any, pimShopId: string) {
     try {
+      const completelyCreatedShopProduct = { info: {}, media: {} };
       const shopApiClient =
-        await this.shopsService.createShopApiClientByShopId(erpShopId);
-      const pimProduct =
-        await this.productsService.getPimProductByName(productNumber);
-      const createdShopProduct = await this.productsService.createShopProduct(
+        await this.shopsService.createShopApiClientByShopId(pimShopId);
+
+      const isModified = await this.productsService.getModifiedProduct(
         pimProduct,
         shopApiClient,
-        erpShopId,
       );
-      return createdShopProduct;
+
+      if (!isModified) {
+        return null;
+      }
+
+      if (pimProduct.hasOwnProperty('variant_of')) {
+        const pimProductParent = await this.productsService.getPimProductByName(
+          pimProduct.variant_of,
+        );
+        const createdShopProduct = await this.productsService.createShopProduct(
+          pimProductParent,
+          pimShopId,
+          shopApiClient,
+        );
+        completelyCreatedShopProduct.info = createdShopProduct;
+      } else {
+        const createdShopProduct = await this.productsService.createShopProduct(
+          pimProduct,
+          pimShopId,
+          shopApiClient,
+        );
+        completelyCreatedShopProduct.info = createdShopProduct;
+      }
+
+      const createdShopProductMedia =
+        await this.productsService.createShopProductMedia(
+          pimProduct,
+          pimShopId,
+          shopApiClient,
+        );
+      completelyCreatedShopProduct.media = createdShopProductMedia;
+
+      return completelyCreatedShopProduct;
     } catch (error) {
       throw error;
     }
   }
+
   public async syncProductMediaToShopById(
     productNumber: string,
     pimShopId: string,
@@ -46,40 +78,27 @@ export class SyncService {
       throw error;
     }
   }
+
   public async syncShopById(pimShopId: string) {
     try {
+      const completelyCreatedShopProducts = [];
       const shopApiClient =
         await this.shopsService.createShopApiClientByShopId(pimShopId);
 
-      const modifiedMainProducts =
-        await this.productsService.getModifiedMainProducts(
-          pimShopId,
-          shopApiClient,
-        );
-      const modifiedProducts = await this.productsService.getModifiedProducts(
+      const pimShopProducts = await this.productsService.getPimShopProducts(
         pimShopId,
         shopApiClient,
       );
 
-      const completelyCreatedShopProducts = [];
-
-      for (const modifiedMainProduct of modifiedMainProducts) {
+      for (const pimShopProduct of pimShopProducts) {
         const createdShopProduct = await this.syncProductToShopById(
-          modifiedMainProduct,
+          pimShopProduct,
           pimShopId,
         );
+        console.log(createdShopProduct);
         completelyCreatedShopProducts.push(createdShopProduct);
       }
 
-      for (const modifiedProduct of modifiedProducts) {
-        const createdShopProductMedia = await this.syncProductMediaToShopById(
-          modifiedProduct,
-          pimShopId,
-          shopApiClient,
-        );
-        completelyCreatedShopProducts.push(createdShopProductMedia);
-      }
-      // throw 'error';
       return completelyCreatedShopProducts;
     } catch (error) {
       throw error;

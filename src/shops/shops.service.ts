@@ -60,6 +60,7 @@ export class ShopsService {
       throw error;
     }
   }
+
   async createShopApiClientByShopId(erpShopId: string) {
     const shopApiData = await this.getShopApiDataByShopId(erpShopId);
     return this.createShopApiClient(shopApiData);
@@ -95,6 +96,7 @@ export class ShopsService {
       throw error;
     }
   }
+
   public async getShopSalesChannelInfo(erpShopId: string, shopApiClient: any) {
     try {
       const erpShopData = await this.getShopApiDataByShopId(erpShopId);
@@ -128,6 +130,142 @@ export class ShopsService {
     } catch (error) {
       console.log('Standard tax not found');
       return null;
+    }
+  }
+
+  public async processPimProductVisibilities(
+    shopProduct: any,
+    erpShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const salesChannel = await this.getShopSalesChannelInfo(
+        erpShopId,
+        shopApiClient,
+      );
+      if (shopProduct === undefined) {
+        return [
+          {
+            salesChannelId: salesChannel.id,
+            visibility: 30,
+          },
+        ];
+      }
+      const productSalesChannels = await this.getSalesChannelsFromProduct(
+        shopProduct.id,
+        shopApiClient,
+      );
+      const shopProductSalesChannelIds = productSalesChannels.map(
+        (item) => item.salesChannelId,
+      );
+      if (shopProductSalesChannelIds.includes(salesChannel.id)) {
+        return null;
+      }
+      if (!shopProductSalesChannelIds.includes(salesChannel.id)) {
+        return [
+          {
+            salesChannelId: salesChannel.id,
+            visibility: 30,
+          },
+        ];
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async removeShopProductVisibilities(
+    shopProduct: any,
+    pimProduct: any,
+    shopApiClient: any,
+  ) {
+    try {
+      const productSalesChannels = await this.getSalesChannelsFromProduct(
+        shopProduct.id,
+        shopApiClient,
+      );
+      const shopProductSalesChannelIds = productSalesChannels.map(
+        (item) => item.salesChannelId,
+      );
+      const assignedPimSalesChannels = pimProduct.custom_assigned_shops;
+      const pimSalesChannelsPromise = await assignedPimSalesChannels.map(
+        async (item) => await this.getShopFromPim(item.shop),
+      );
+      const pimSalesChannels = await Promise.all(pimSalesChannelsPromise);
+      const pimProductStorefrontIds = pimSalesChannels.map(
+        (item) => item.storefrontid,
+      );
+
+      const removedProductShops = shopProductSalesChannelIds.filter(
+        (item) => !pimProductStorefrontIds.includes(item),
+      );
+      if (removedProductShops.length > 0) {
+        const removedProductShopsPromise = removedProductShops.map(
+          async (item) =>
+            await this.removeSalesChannelFromProduct(
+              shopProduct.id,
+              productSalesChannels.find(
+                (element) => element.salesChannelId === item,
+              ).id,
+              shopApiClient,
+            ),
+        );
+        await Promise.all(removedProductShopsPromise);
+      }
+    } catch (error) {
+      return null;
+    }
+  }
+
+  public async getSalesChannelsFromProduct(
+    productId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/product/${productId}/visibilities/`,
+      );
+
+      const productData = await response.data.data;
+
+      return productData;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async removeSalesChannelFromProduct(
+    productId: string,
+    visibilityId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      console.log('remove');
+      const response = await shopApiClient.delete(
+        `/api/product/${productId}/visibilities/${visibilityId}`,
+      );
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async getSalesChannelFromProductBySalesChannelId(
+    productId: string,
+    salesChannelId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/product/${productId}/visibilities?filter[salesChannelId]=${salesChannelId}`,
+      );
+
+      const productData = await response.data.data[0];
+
+      return productData;
+    } catch (error) {
+      throw error;
     }
   }
 }

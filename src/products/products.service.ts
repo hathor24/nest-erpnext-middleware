@@ -25,9 +25,9 @@ export class ProductsService {
     try {
       const response = await shopApiClient.get(`/api/product`);
 
-      const allProductsData = await response.data.data;
+      const allShopProductsData = await response.data.data;
 
-      return allProductsData;
+      return allShopProductsData;
     } catch (error) {
       throw error;
     }
@@ -35,10 +35,11 @@ export class ProductsService {
 
   public async getShopProductById(productId: string, shopApiClient: any) {
     const response = await shopApiClient.get(`/api/product/${productId}`);
-    const productData = await response.data.data;
+    const shopProduct = await response.data.data;
 
-    return productData;
+    return shopProduct;
   }
+
   public async getShopProductByProductNumber(
     productNumber: string,
     shopApiClient: any,
@@ -47,11 +48,11 @@ export class ProductsService {
       const response = await shopApiClient.get(
         `/api/product?filter[productNumber]=${productNumber}`,
       );
-      const productData = response.data.data;
-      if (productData.length === 0) {
+      const shopProduct = response.data.data;
+      if (shopProduct.length === 0) {
         return { id: null };
       }
-      return productData[0];
+      return shopProduct[0];
     } catch (error) {
       console.log('Shop product not found');
       return { id: null };
@@ -66,31 +67,31 @@ export class ProductsService {
   }
 
   public async createShopProduct(
-    productData: any,
-    shopApiClient: any,
+    pimProduct: any,
     erpShopId: string,
+    shopApiClient: any,
   ) {
     try {
-      const allProductsData = await this.getShopProducts(shopApiClient);
-      const shopProduct = allProductsData.find(
-        (obj) => obj.productNumber === productData.item_code,
+      const allShopProductsData = await this.getShopProducts(shopApiClient);
+      const shopProduct = allShopProductsData.find(
+        (obj) => obj.productNumber === pimProduct.item_code,
       );
       const data = {
         parentId: (
           await this.getShopProductByProductNumber(
-            productData.variant_of,
+            pimProduct.variant_of,
             shopApiClient,
           )
         ).id,
         manufacturerId: (
           await this.manufacturersService.getOrCreateShopManufacturer(
-            productData.brand,
+            pimProduct.brand,
             shopApiClient,
           )
         ).id,
         unitId: (
           await this.unitsService.processPimProductUnit(
-            productData,
+            pimProduct,
             shopApiClient,
           )
         ).id,
@@ -106,80 +107,87 @@ export class ProductsService {
                 shopApiClient,
               )
             ).currencyId,
-            gross: await this.getPimProductPrice(productData, erpShopId),
+            gross: await this.getPimProductPrice(pimProduct, erpShopId),
             net:
-              ((await this.getPimProductPrice(productData, erpShopId)) / 119) *
+              ((await this.getPimProductPrice(pimProduct, erpShopId)) / 119) *
               100,
             linked: true,
           },
         ],
-        visibilities: await this.processPimProductVisibilities(
-          productData,
+        visibilities: await this.shopsService.processPimProductVisibilities(
+          shopProduct,
           erpShopId,
           shopApiClient,
         ),
         /* required */
-        productNumber: productData.item_code,
-        active: productData.custom_active == 0 ? false : true,
+        productNumber: pimProduct.item_code,
+        active: pimProduct.custom_active == 0 ? false : true,
         variantListingConfig: await this.getVariantListingConfig(
-          productData,
+          pimProduct,
           shopApiClient,
         ),
-        manufacturerNumber: productData.custom_manufacturer_number,
-        ean: productData.custom_ean,
-        purchaseUnit: productData.custom_purchase_unit,
-        referenceUnit: productData.custom_reference_unit,
+        manufacturerNumber: pimProduct.custom_manufacturer_number,
+        ean: pimProduct.custom_ean,
+        purchaseUnit: pimProduct.custom_purchase_unit,
+        referenceUnit: pimProduct.custom_reference_unit,
         markAsTopseller:
-          productData.custom_mark_as_topseller == 0 ? false : true,
-        weight: productData.custom_weight,
-        width: productData.custom_width,
-        height: productData.custom_height,
-        length: productData.custom_length,
+          pimProduct.custom_mark_as_topseller == 0 ? false : true,
+        weight: pimProduct.custom_weight,
+        width: pimProduct.custom_width,
+        height: pimProduct.custom_height,
+        length: pimProduct.custom_length,
         /* required */
-        name: productData.item_name,
-        keywords: productData.custom_keywords,
-        description: await this.getPimProductDescription(
-          productData,
-          erpShopId,
-        ),
-        packUnit: productData.custom_pack_unit,
-        packUnitPlural: productData.custom_pack_unit_plural,
+        name: pimProduct.item_name,
+        keywords: pimProduct.custom_keywords,
+        description: await this.getPimProductDescription(pimProduct, erpShopId),
+        packUnit: pimProduct.custom_pack_unit,
+        packUnitPlural: pimProduct.custom_pack_unit_plural,
         customFields: {
-          br_pim_modified: productData.modified,
+          br_pim_modified: pimProduct.modified,
         },
-        availableStock: productData.custom_stock,
+        availableStock: pimProduct.custom_stock,
         /* required */
-        stock: productData.custom_stock,
+        stock: pimProduct.custom_stock,
 
         ///////////////////
         // RELATIONSHIPS //
         ///////////////////
 
         children: await this.getChildrenBulk(
-          productData,
+          pimProduct,
           erpShopId,
           shopApiClient,
         ),
 
         configuratorSettings: await this.processPimProductConfiguratorSettings(
-          productData,
+          pimProduct,
           shopApiClient,
         ),
         options: await this.propertiesService.processPimProductPropertyOptions(
-          productData,
+          pimProduct,
           shopApiClient,
         ),
         properties: await this.propertiesService.processPimProductProperties(
-          productData,
+          pimProduct,
           shopProduct,
           shopApiClient,
         ),
         tags: await this.tagsService.processPimProductTags(
-          productData,
+          pimProduct,
           shopProduct,
           shopApiClient,
         ),
       };
+      await this.shopsService.removeShopProductVisibilities(
+        shopProduct,
+        pimProduct,
+        shopApiClient,
+      );
+      await this.mediaService.removeShopProductMedia(
+        shopProduct,
+        pimProduct,
+        shopApiClient,
+      );
 
       if (shopProduct !== undefined) {
         const response = await shopApiClient.patch(
@@ -204,6 +212,7 @@ export class ProductsService {
       console.log(error.response.data);
     }
   }
+
   public async updateShopProduct(
     shopApiClient: any,
     productId: string,
@@ -220,13 +229,14 @@ export class ProductsService {
       throw error;
     }
   }
-  public async getPimProductPrice(productData: any, erpShopId: string) {
+
+  public async getPimProductPrice(pimProduct: any, erpShopId: string) {
     try {
-      for (const shop of productData.custom_assigned_shops) {
+      for (const shop of pimProduct.custom_assigned_shops) {
         if (shop.shop === erpShopId) {
           return shop.product_price
             ? shop.product_price
-            : productData.custom_price;
+            : pimProduct.custom_price;
         }
       }
     } catch (error) {
@@ -234,13 +244,14 @@ export class ProductsService {
       return null;
     }
   }
-  public async getPimProductDescription(productData: any, erpShopId: string) {
+
+  public async getPimProductDescription(pimProduct: any, erpShopId: string) {
     try {
-      for (const shop of productData.custom_assigned_shops) {
+      for (const shop of pimProduct.custom_assigned_shops) {
         if (shop.shop === erpShopId) {
           return shop.product_description
             ? shop.product_description
-            : productData.description;
+            : pimProduct.description;
         }
       }
     } catch (error) {
@@ -248,10 +259,11 @@ export class ProductsService {
       return null;
     }
   }
-  public async getPimProductShops(productData: any) {
+
+  public async getPimProductShops(pimProduct: any) {
     try {
       const shopsIds = [];
-      for (const shop of productData.custom_assigned_shops) {
+      for (const shop of pimProduct.custom_assigned_shops) {
         shopsIds.push(shop.shop);
       }
       return shopsIds;
@@ -261,10 +273,10 @@ export class ProductsService {
     }
   }
 
-  public async getShopProductParent(productData: any, shopApiClient: any) {
+  public async getShopProductParent(pimProduct: any, shopApiClient: any) {
     try {
       const response = await shopApiClient.get(
-        `/api/product/${productData.variant_of}`,
+        `/api/product/${pimProduct.variant_of}`,
       );
       const parentProduct = response.data.data;
       return parentProduct;
@@ -274,11 +286,9 @@ export class ProductsService {
     }
   }
 
-  public async getPimProductParent(productData: any) {
+  public async getPimProductParent(pimProduct: any) {
     try {
-      const response = await erpApiClient.get(
-        `/Item/${productData.variant_of}`,
-      );
+      const response = await erpApiClient.get(`/Item/${pimProduct.variant_of}`);
       const parentProduct = response.data.data;
       return parentProduct;
     } catch (error) {
@@ -286,6 +296,7 @@ export class ProductsService {
       return null;
     }
   }
+
   public async getPimProducts() {
     try {
       const response = await erpApiClient.get('/Item');
@@ -295,6 +306,7 @@ export class ProductsService {
       throw error;
     }
   }
+
   public async getPimProductByName(productName: string) {
     try {
       const response = await erpApiClient.get(`/Item/${productName}`);
@@ -306,20 +318,20 @@ export class ProductsService {
   }
 
   public async processPimProductConfiguratorSettings(
-    productData: any,
+    pimProduct: any,
     shopApiClient: any,
   ) {
     try {
       const shopProductPropertyOptions: any = [];
-      if (productData.has_variants === 1) {
+      if (pimProduct.has_variants === 1) {
         const pimProducts = await this.getPimProducts();
 
         for (const item of pimProducts) {
           const variantPimProduct = await this.getPimProductByName(item.name);
 
-          if (variantPimProduct.variant_of === productData.item_code) {
+          if (variantPimProduct.variant_of === pimProduct.item_code) {
             const shopProduct = await this.getShopProductByProductNumber(
-              productData.item_code,
+              pimProduct.item_code,
               shopApiClient,
             );
 
@@ -361,8 +373,9 @@ export class ProductsService {
       return null;
     }
   }
+
   public async getChildrenBulk(
-    productData: any,
+    pimProduct: any,
     erpShopId: string,
     shopApiClient: any,
   ) {
@@ -371,7 +384,7 @@ export class ProductsService {
       const children = [];
       for (const item of pimProducts) {
         const variantPimProduct = await this.getPimProductByName(item.name);
-        if (variantPimProduct.variant_of === productData.item_code) {
+        if (variantPimProduct.variant_of === pimProduct.item_code) {
           const shopProduct = await this.getShopProductByProductNumber(
             variantPimProduct.item_code,
             shopApiClient,
@@ -448,69 +461,11 @@ export class ProductsService {
     }
   }
 
-  public async processPimProductVisibilities(
-    productData: any,
-    erpShopId: string,
-    shopApiClient: any,
-  ) {
+  public async getVariantListingConfig(pimProduct: any, shopApiClient: any) {
     try {
-      const shopProduct = await this.getShopProductByProductNumber(
-        productData.item_code,
-        shopApiClient,
-      );
-
-      if (shopProduct.id !== null) {
-        const shopProductVisibilitiesResponse = await shopApiClient.get(
-          `/api/product/${shopProduct.id}/visibilities`,
-        );
-        const shopProductVisibilities =
-          shopProductVisibilitiesResponse.data.data;
-
-        const salesChannel = await this.shopsService.getShopSalesChannelInfo(
-          erpShopId,
-          shopApiClient,
-        );
-        for (const shopProductVisibility of shopProductVisibilities) {
-          if (shopProductVisibility.salesChannelId === salesChannel.id) {
-            return [
-              {
-                id: shopProductVisibility.id,
-                salesChannelId: salesChannel.id,
-                visibility: shopProductVisibility.visibility,
-              },
-            ];
-          } else {
-            return [
-              {
-                salesChannelId: salesChannel.id,
-                visibility: 30,
-              },
-            ];
-          }
-        }
-      } else {
-        const salesChannel = await this.shopsService.getShopSalesChannelInfo(
-          erpShopId,
-          shopApiClient,
-        );
-        return [
-          {
-            salesChannelId: salesChannel.id,
-            visibility: 30,
-          },
-        ];
-      }
-    } catch (error) {
-      console.log('Visibilities not found');
-      return null;
-    }
-  }
-
-  public async getVariantListingConfig(productData: any, shopApiClient: any) {
-    try {
-      if (productData.has_variants === 1) {
+      if (pimProduct.has_variants === 1) {
         const shopProduct = await this.getShopProductByProductNumber(
-          productData.item_code,
+          pimProduct.item_code,
           shopApiClient,
         );
         if (shopProduct.id !== null) {
@@ -532,10 +487,11 @@ export class ProductsService {
       return null;
     }
   }
+
   public async createShopProductMedia(
     pimProduct: any,
-    shopApiClient: any,
     erpShopId: string,
+    shopApiClient: any,
   ) {
     try {
       const shopProduct = await this.getShopProductByProductNumber(
@@ -554,6 +510,7 @@ export class ProductsService {
       return null;
     }
   }
+
   public async getModifiedProducts(erpShopId: string, shopApiClient: any) {
     try {
       const response = await erpApiClient.get('/Item');
@@ -598,6 +555,7 @@ export class ProductsService {
       const pimProducts = response.data.data;
 
       const modifiedMainProducts: Set<string> = new Set();
+
       for (const pimProduct of pimProducts) {
         let pimProductComplete = await this.getPimProductByName(
           pimProduct.name,
@@ -631,6 +589,54 @@ export class ProductsService {
         }
       }
       return Array.from(modifiedMainProducts);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async getModifiedProduct(pimProduct: any, shopApiClient: any) {
+    try {
+      const response = await shopApiClient.get(
+        `/api/product?filter[productNumber]=${pimProduct.item_code}`,
+      );
+      const shopProduct = response.data.data[0];
+      if (
+        shopProduct === undefined ||
+        pimProduct.modified !== shopProduct?.customFields?.br_pim_modified
+      ) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async getPimShopProducts(pimShopId: string, shopApiClient: any) {
+    try {
+      const pimShopProducts = [];
+      const response = await erpApiClient.get('/Item');
+      const pimProducts = response.data.data;
+      for (const pimProduct of pimProducts) {
+        const pimProductComplete = await this.getPimProductByName(
+          pimProduct.name,
+        );
+        const response = await shopApiClient.get(
+          `/api/product?filter[productNumber]=${pimProduct.name}`,
+        );
+        const shopProduct = response.data.data[0];
+
+        pimProductComplete.uuid =
+          shopProduct != undefined ? shopProduct.id : null;
+        const assignedShop = pimProductComplete.custom_assigned_shops.some(
+          (objekt) => objekt.shop === pimShopId,
+        );
+        if (assignedShop) {
+          pimShopProducts.push(pimProductComplete.name);
+        }
+      }
+
+      return pimShopProducts;
     } catch (error) {
       throw error;
     }

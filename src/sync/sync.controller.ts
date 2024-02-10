@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Param } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { ShopsService } from '../shops/shops.service';
 import { ProductsService } from '../products/products.service';
@@ -12,18 +12,25 @@ export class SyncController {
   ) {}
   @Get('/product/:productNumber')
   async syncProduct(@Param('productNumber') productNumber: string) {
-    const productData =
+    const pimProduct =
       await this.productService.getPimProductByName(productNumber);
 
     const pimProductShopsIds =
-      await this.productService.getPimProductShops(productData);
-
-    const syncPromises = pimProductShopsIds.map((shopId) =>
-      this.syncProductToShopById(shopId, productNumber),
+      await this.productService.getPimProductShops(pimProduct);
+    const syncPromises = pimProductShopsIds.map(
+      async (shopId) => await this.syncProductToShopById(shopId, pimProduct),
     );
 
-    await Promise.all(syncPromises);
-    return 'Product synchronization processes have been initiated';
+    const data = await Promise.all(syncPromises);
+
+    const response = {
+      status_code: HttpStatus.OK,
+      process: 'Product synchronization processes have been initiated',
+      data: data,
+    };
+
+    return response;
+    // return 'Product synchronization processes have been initiated';
   }
 
   @Get('/shop/all')
@@ -40,8 +47,13 @@ export class SyncController {
   @Get('/shop/:shopId/')
   async syncShopById(@Param('shopId') shopId: string) {
     try {
-      const syncedShop = await this.syncService.syncShopById(shopId);
-      return syncedShop;
+      await this.syncService.syncShopById(shopId);
+      const response = {
+        status_code: HttpStatus.OK,
+        process: 'Shop synchronization processes have been initiated',
+      };
+
+      return response;
     } catch (error) {
       throw error;
     }
@@ -59,9 +71,11 @@ export class SyncController {
       );
       return syncedShop;
     } catch (error) {
+      console.log(error.response.data);
       throw error;
     }
   }
+
   @Get('/shop/:shopId/:productNumber/media')
   async syncProductMediaToShopById(
     @Param('shopId') shopId: string,
