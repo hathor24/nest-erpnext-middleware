@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import erpApiClient from '../api/erp-api-client';
+import pimApiClient from '../api/pim-api-client';
 
 @Injectable()
 export class UnitsService {
@@ -78,7 +78,7 @@ export class UnitsService {
     return updatedUnit;
   }
   public async getPimUnitDataByUnitName(unitName: string) {
-    const response = await erpApiClient.get(`/UOM/${unitName}`);
+    const response = await pimApiClient.get(`/UOM/${unitName}`);
 
     const unitData = await response.data.data;
 

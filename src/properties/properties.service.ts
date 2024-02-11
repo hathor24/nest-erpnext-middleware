@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import erpApiClient from '../api/erp-api-client';
+import pimApiClient from '../api/pim-api-client';
 
 interface ShopApiClient {
   get(path: string): Promise<any>;
@@ -21,14 +21,14 @@ interface PropertyValue {
 export class PropertiesService {
   constructor() {}
   public async getPimPropertyDataById(propertyId: string) {
-    const response = await erpApiClient.get(`/Property/${propertyId}`);
+    const response = await pimApiClient.get(`/Property/${propertyId}`);
 
     const propertyData = await response.data.data;
 
     return propertyData;
   }
   public async getPimPropertyValueDataById(propertyValueId: string) {
-    const response = await erpApiClient.get(
+    const response = await pimApiClient.get(
       `/Property%20Value/${propertyValueId}`,
     );
 

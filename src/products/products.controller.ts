@@ -11,9 +11,9 @@ export class ProductsController {
 
   @Get('/erp/:productNumber')
   async getProductFromPim(@Param('productNumber') productNumber: string) {
-    const erpProduct =
+    const pimProduct =
       await this.productsService.getPimProductByName(productNumber);
-    return erpProduct;
+    return pimProduct;
   }
   @Get('/modified/:shopId')
   async getModifiedProducts(@Param('shopId') shopId: string) {

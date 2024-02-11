@@ -1,6 +1,6 @@
 // products.service.ts
 import { Injectable } from '@nestjs/common';
-import erpApiClient from '../api/erp-api-client';
+import pimApiClient from '../api/pim-api-client';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
 import { PropertiesService } from '../properties/properties.service';
 import { UnitsService } from '../units/units.service';
@@ -66,9 +66,36 @@ export class ProductsService {
     return deletedProduct;
   }
 
+  public async removeShopProduct(
+    shopProduct: any,
+    pimProduct: any,
+    // pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      if (shopProduct !== undefined) {
+        //wenn keiner der pimProduct.custom_assigned_shops.shop === pimShopId ist, dann lösche das Produkt
+        const existingShops = [];
+        for (const shop of pimProduct.custom_assigned_shops) {
+          const shopExists = await this.shopsService.getShopSalesChannelInfo(
+            shop.shop,
+            shopApiClient,
+          );
+          existingShops.push(shopExists);
+        }
+        if (existingShops.length === 0) {
+          return this.deleteShopProduct(shopProduct.id, shopApiClient);
+        }
+      }
+    } catch (error) {
+      console.log('Shop product not found');
+      return null;
+    }
+  }
+
   public async createShopProduct(
     pimProduct: any,
-    erpShopId: string,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
@@ -103,20 +130,20 @@ export class ProductsService {
           {
             currencyId: (
               await this.shopsService.getShopSalesChannelInfo(
-                erpShopId,
+                pimShopId,
                 shopApiClient,
               )
             ).currencyId,
-            gross: await this.getPimProductPrice(pimProduct, erpShopId),
+            gross: await this.getPimProductPrice(pimProduct, pimShopId),
             net:
-              ((await this.getPimProductPrice(pimProduct, erpShopId)) / 119) *
+              ((await this.getPimProductPrice(pimProduct, pimShopId)) / 119) *
               100,
             linked: true,
           },
         ],
         visibilities: await this.shopsService.processPimProductVisibilities(
           shopProduct,
-          erpShopId,
+          pimShopId,
           shopApiClient,
         ),
         /* required */
@@ -139,7 +166,7 @@ export class ProductsService {
         /* required */
         name: pimProduct.item_name,
         keywords: pimProduct.custom_keywords,
-        description: await this.getPimProductDescription(pimProduct, erpShopId),
+        description: await this.getPimProductDescription(pimProduct, pimShopId),
         packUnit: pimProduct.custom_pack_unit,
         packUnitPlural: pimProduct.custom_pack_unit_plural,
         customFields: {
@@ -155,7 +182,7 @@ export class ProductsService {
 
         children: await this.getChildrenBulk(
           pimProduct,
-          erpShopId,
+          pimShopId,
           shopApiClient,
         ),
 
@@ -188,6 +215,7 @@ export class ProductsService {
         pimProduct,
         shopApiClient,
       );
+      // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
 
       if (shopProduct !== undefined) {
         const response = await shopApiClient.patch(
@@ -230,10 +258,10 @@ export class ProductsService {
     }
   }
 
-  public async getPimProductPrice(pimProduct: any, erpShopId: string) {
+  public async getPimProductPrice(pimProduct: any, pimShopId: string) {
     try {
       for (const shop of pimProduct.custom_assigned_shops) {
-        if (shop.shop === erpShopId) {
+        if (shop.shop === pimShopId) {
           return shop.product_price
             ? shop.product_price
             : pimProduct.custom_price;
@@ -245,10 +273,10 @@ export class ProductsService {
     }
   }
 
-  public async getPimProductDescription(pimProduct: any, erpShopId: string) {
+  public async getPimProductDescription(pimProduct: any, pimShopId: string) {
     try {
       for (const shop of pimProduct.custom_assigned_shops) {
-        if (shop.shop === erpShopId) {
+        if (shop.shop === pimShopId) {
           return shop.product_description
             ? shop.product_description
             : pimProduct.description;
@@ -288,7 +316,7 @@ export class ProductsService {
 
   public async getPimProductParent(pimProduct: any) {
     try {
-      const response = await erpApiClient.get(`/Item/${pimProduct.variant_of}`);
+      const response = await pimApiClient.get(`/Item/${pimProduct.variant_of}`);
       const parentProduct = response.data.data;
       return parentProduct;
     } catch (error) {
@@ -299,7 +327,7 @@ export class ProductsService {
 
   public async getPimProducts() {
     try {
-      const response = await erpApiClient.get('/Item');
+      const response = await pimApiClient.get('/Item');
       const pimProducts = response.data.data;
       return pimProducts;
     } catch (error) {
@@ -309,7 +337,7 @@ export class ProductsService {
 
   public async getPimProductByName(productName: string) {
     try {
-      const response = await erpApiClient.get(`/Item/${productName}`);
+      const response = await pimApiClient.get(`/Item/${productName}`);
       const pimProduct = response.data.data;
       return pimProduct;
     } catch (error) {
@@ -376,7 +404,7 @@ export class ProductsService {
 
   public async getChildrenBulk(
     pimProduct: any,
-    erpShopId: string,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
@@ -400,18 +428,18 @@ export class ProductsService {
               {
                 currencyId: (
                   await this.shopsService.getShopSalesChannelInfo(
-                    erpShopId,
+                    pimShopId,
                     shopApiClient,
                   )
                 ).currencyId,
                 gross: await this.getPimProductPrice(
                   variantPimProduct,
-                  erpShopId,
+                  pimShopId,
                 ),
                 net:
                   ((await this.getPimProductPrice(
                     variantPimProduct,
-                    erpShopId,
+                    pimShopId,
                   )) /
                     119) *
                   100,
@@ -490,7 +518,7 @@ export class ProductsService {
 
   public async createShopProductMedia(
     pimProduct: any,
-    erpShopId: string,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
@@ -501,7 +529,7 @@ export class ProductsService {
       const media = await this.mediaService.processPimProductMedia(
         pimProduct,
         shopProduct,
-        erpShopId,
+        pimShopId,
         shopApiClient,
       );
       return media;
@@ -511,9 +539,9 @@ export class ProductsService {
     }
   }
 
-  public async getModifiedProducts(erpShopId: string, shopApiClient: any) {
+  public async getModifiedProducts(pimShopId: string, shopApiClient: any) {
     try {
-      const response = await erpApiClient.get('/Item');
+      const response = await pimApiClient.get('/Item');
       const pimProducts = response.data.data;
 
       const modifiedProducts: any = [];
@@ -531,7 +559,7 @@ export class ProductsService {
           shopProduct != undefined ? shopProduct.id : null;
 
         const assignedShop = pimProductComplete.custom_assigned_shops.some(
-          (objekt) => objekt.shop === erpShopId,
+          (objekt) => objekt.shop === pimShopId,
         );
 
         if (
@@ -549,9 +577,9 @@ export class ProductsService {
     }
   }
 
-  public async getModifiedMainProducts(erpShopId: string, shopApiClient: any) {
+  public async getModifiedMainProducts(pimShopId: string, shopApiClient: any) {
     try {
-      const response = await erpApiClient.get('/Item');
+      const response = await pimApiClient.get('/Item');
       const pimProducts = response.data.data;
 
       const modifiedMainProducts: Set<string> = new Set();
@@ -580,7 +608,7 @@ export class ProductsService {
             shopProduct !== undefined ? shopProduct.id : null;
 
           const assignedShop = pimProductComplete.custom_assigned_shops.find(
-            (objekt) => objekt.shop === erpShopId,
+            (objekt) => objekt.shop === pimShopId,
           );
 
           if (assignedShop) {
@@ -615,7 +643,7 @@ export class ProductsService {
   public async getPimShopProducts(pimShopId: string, shopApiClient: any) {
     try {
       const pimShopProducts = [];
-      const response = await erpApiClient.get('/Item');
+      const response = await pimApiClient.get('/Item');
       const pimProducts = response.data.data;
       for (const pimProduct of pimProducts) {
         const pimProductComplete = await this.getPimProductByName(

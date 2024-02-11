@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
-import erpApiClient from '../api/erp-api-client';
+import pimApiClient from '../api/pim-api-client';
 
 @Injectable()
 export class ShopsService {
@@ -61,14 +61,14 @@ export class ShopsService {
     }
   }
 
-  async createShopApiClientByShopId(erpShopId: string) {
-    const shopApiData = await this.getShopApiDataByShopId(erpShopId);
+  async createShopApiClientByShopId(pimShopId: string) {
+    const shopApiData = await this.getShopApiDataByShopId(pimShopId);
     return this.createShopApiClient(shopApiData);
   }
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
-      const response = await erpApiClient.get(`/Item%20Shop/${shopId}`);
+      const response = await pimApiClient.get(`/Item%20Shop/${shopId}`);
 
       const shopApiData = response.data.data;
       return shopApiData;
@@ -79,9 +79,9 @@ export class ShopsService {
 
   async getShopsFromPim() {
     try {
-      const response = await erpApiClient.get('/Item%20Shop');
-      const erpShops = response.data.data;
-      return erpShops;
+      const response = await pimApiClient.get('/Item%20Shop');
+      const pimShops = response.data.data;
+      return pimShops;
     } catch (error) {
       throw error;
     }
@@ -89,24 +89,24 @@ export class ShopsService {
 
   async getShopFromPim(shopNumber: string) {
     try {
-      const response = await erpApiClient.get(`/Item%20Shop/${shopNumber}`);
-      const erpShop = response.data.data;
-      return erpShop;
+      const response = await pimApiClient.get(`/Item%20Shop/${shopNumber}`);
+      const pimShop = response.data.data;
+      return pimShop;
     } catch (error) {
       throw error;
     }
   }
 
-  public async getShopSalesChannelInfo(erpShopId: string, shopApiClient: any) {
+  public async getShopSalesChannelInfo(pimShopId: string, shopApiClient: any) {
     try {
-      const erpShopData = await this.getShopApiDataByShopId(erpShopId);
+      const pimShopData = await this.getShopApiDataByShopId(pimShopId);
 
       const response = await shopApiClient.get(`/api/sales-channel`);
 
       const salesChannels = await response.data.data;
 
       for (const salesChannel of salesChannels) {
-        if (salesChannel.id === erpShopData.storefrontid) {
+        if (salesChannel.id === pimShopData.storefrontid) {
           return salesChannel;
         }
       }
@@ -135,12 +135,12 @@ export class ShopsService {
 
   public async processPimProductVisibilities(
     shopProduct: any,
-    erpShopId: string,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
       const salesChannel = await this.getShopSalesChannelInfo(
-        erpShopId,
+        pimShopId,
         shopApiClient,
       );
       if (shopProduct === undefined) {

@@ -7,13 +7,13 @@ export class ShopsController {
 
   @Get('/erp')
   async getShopsFromPim() {
-    const erpShops = await this.shopsService.getShopsFromPim();
-    return erpShops;
+    const pimShops = await this.shopsService.getShopsFromPim();
+    return pimShops;
   }
 
   @Get('/erp/:shopNumber')
   async getShopFromPim(@Param('shopNumber') shopNumber: string) {
-    const erpShop = await this.shopsService.getShopFromPim(shopNumber);
-    return erpShop;
+    const pimShop = await this.shopsService.getShopFromPim(shopNumber);
+    return pimShop;
   }
 }

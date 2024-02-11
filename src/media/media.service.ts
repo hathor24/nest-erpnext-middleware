@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import erpFileClient from '../api/erp-file-client';
+import pimFileClient from '../api/pim-file-client';
 import axios, { AxiosInstance } from 'axios';
-import erpApiClient from '../api/erp-api-client';
+import pimApiClient from '../api/pim-api-client';
 import { CommonService } from '../common/common.service';
 
 @Injectable()
@@ -111,17 +111,17 @@ export class MediaService {
   public async attachMediaRessourceToMediaObject(
     mediaObjectId: string,
     mediaRessourceUrl: string,
-    erpShopId: string,
+    pimShopId: string,
   ) {
     try {
       const imgUrl = mediaRessourceUrl.replace(/ /g, '%20');
-      const fileResponse = await erpFileClient.get(imgUrl, {
+      const fileResponse = await pimFileClient.get(imgUrl, {
         responseType: 'arraybuffer',
       });
       const binaryFileData = Buffer.from(fileResponse.data, 'binary');
 
       const shopApiFileClient =
-        await this.createShopApiFileClientByShopId(erpShopId);
+        await this.createShopApiFileClientByShopId(pimShopId);
       await shopApiFileClient.post(
         `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg`,
         binaryFileData,
@@ -153,8 +153,8 @@ export class MediaService {
     }
   }
 
-  async createShopApiFileClientByShopId(erpShopId: string) {
-    const shopApiData = await this.getShopApiDataByShopId(erpShopId);
+  async createShopApiFileClientByShopId(pimShopId: string) {
+    const shopApiData = await this.getShopApiDataByShopId(pimShopId);
     return this.createShopApiFileClient(shopApiData);
   }
 
@@ -169,7 +169,7 @@ export class MediaService {
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
-      const response = await erpApiClient.get(`/Item%20Shop/${shopId}`);
+      const response = await pimApiClient.get(`/Item%20Shop/${shopId}`);
 
       const shopApiData = response.data.data;
       return shopApiData;
@@ -208,7 +208,7 @@ export class MediaService {
   public async processPimProductMedia(
     pimProduct: any,
     shopProduct: any,
-    erpShopId: string,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
@@ -310,7 +310,7 @@ export class MediaService {
             await this.attachMediaRessourceToMediaObject(
               mediaId,
               pimProductMediaAssignments[pimProductMediaAssignment],
-              erpShopId,
+              pimShopId,
             );
           }
         }
