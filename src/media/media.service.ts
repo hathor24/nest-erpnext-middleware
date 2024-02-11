@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import erpFileClient from '../api/erp-file-client';
 import axios, { AxiosInstance } from 'axios';
 import erpApiClient from '../api/erp-api-client';
-import { v5 as uuidv5 } from 'uuid';
+import { CommonService } from '../common/common.service';
 
 @Injectable()
 export class MediaService {
+  constructor(private readonly commonService: CommonService) {}
   public async getShopMedia(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/media`);
@@ -211,7 +212,6 @@ export class MediaService {
     shopApiClient: any,
   ) {
     try {
-      const shopProductMediaList: any = [];
       const pimProductMediaAssignments: any = {
         coverImage: pimProduct.image,
         image01: pimProduct.custom_attachimg01,
@@ -223,6 +223,8 @@ export class MediaService {
         image07: pimProduct.custom_attachimg07,
         image08: pimProduct.custom_attachimg08,
       };
+      const shopProductMediaList: any = [];
+
       const allValuesNull = Object.values(pimProductMediaAssignments).every(
         (value) => value == false,
       );
@@ -234,17 +236,11 @@ export class MediaService {
         if (!pimProductMediaAssignments[pimProductMediaAssignment]) {
           continue;
         }
-
-        const productMediaId = uuidv5(
+        const productMediaId = await this.commonService.generateUUID(
           pimProductMediaAssignments[pimProductMediaAssignment],
-          '1b671a64-40d5-491e-99b0-da01ff1f3341',
-        ).replace(/-/g, '');
-        console.log('generatedProductMediaId:', productMediaId);
+        );
 
-        const mediaId = uuidv5(
-          productMediaId,
-          '1b671a64-40d5-491e-99b0-da01ff1f3341',
-        ).replace(/-/g, '');
+        const mediaId = await this.commonService.generateUUID(productMediaId);
 
         const mediaData: any = await this.getShopMediaById(
           mediaId,
@@ -356,11 +352,13 @@ export class MediaService {
         pimProductMediaAssignments,
       ).filter((value) => value != false && value !== undefined);
 
-      const pimProductMediaIds = pimProductMediaUrls.map((url) => {
-        const productMediaId = uuidv5(
-          url,
-          '1b671a64-40d5-491e-99b0-da01ff1f3341',
-        ).replace(/-/g, '');
+      const pimProductMediaIds = pimProductMediaUrls.map(async (url) => {
+        // const productMediaId = uuidv5(
+        //   url,
+        //   '1b671a64-40d5-491e-99b0-da01ff1f3341',
+        // ).replace(/-/g, '');
+
+        const productMediaId = await this.commonService.generateUUID(url);
         return productMediaId;
       });
 

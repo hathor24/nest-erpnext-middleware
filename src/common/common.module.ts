@@ -9,6 +9,7 @@ import { SyncService } from '../sync/sync.service';
 import { TagsService } from '../tags/tags.service';
 import { UnitsService } from '../units/units.service';
 import { ConfiguratorSettingsService } from '../configurator-settings/configurator-settings.service';
+import { CommonService } from './common.service';
 
 @Module({
   providers: [
@@ -21,6 +22,7 @@ import { ConfiguratorSettingsService } from '../configurator-settings/configurat
     TagsService,
     UnitsService,
     ConfiguratorSettingsService,
+    CommonService,
   ],
   exports: [
     ManufacturersService,
@@ -32,6 +34,7 @@ import { ConfiguratorSettingsService } from '../configurator-settings/configurat
     TagsService,
     UnitsService,
     ConfiguratorSettingsService,
+    CommonService,
   ],
 })
 // export {  ManufacturersService, MediaService, ProductsService, PropertiesService, ShopsService, SyncService, TagsService, UnitsService,}
