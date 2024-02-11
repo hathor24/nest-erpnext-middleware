@@ -80,6 +80,7 @@ export class MediaService {
     productMediaId: string,
     productId: string,
     mediaId: string,
+    mediaTitle: string,
     position: number,
     shopApiClient: any,
   ) {
@@ -93,6 +94,7 @@ export class MediaService {
               id: mediaId,
               position: position,
               mediaFolderId: '7fd73faecba94c45946f120aff7d5998',
+              title: mediaTitle,
             },
           },
         ],
@@ -127,24 +129,6 @@ export class MediaService {
       throw error;
       return null;
     }
-  }
-
-  public async removeMediaFromProduct(
-    shopApiClient: any,
-    productId: string,
-    mediaId: string,
-  ) {
-    const response = await shopApiClient.patch(`/api/product/${productId}`, {
-      media: [
-        {
-          id: mediaId,
-          remove: true,
-        },
-      ],
-    });
-    const removedMedia = response.data;
-
-    return removedMedia;
   }
 
   async createShopApiFileClient(shopApiData: any): Promise<AxiosInstance> {
@@ -239,7 +223,6 @@ export class MediaService {
         image07: pimProduct.custom_attachimg07,
         image08: pimProduct.custom_attachimg08,
       };
-
       const allValuesNull = Object.values(pimProductMediaAssignments).every(
         (value) => value == false,
       );
@@ -256,6 +239,7 @@ export class MediaService {
           pimProductMediaAssignments[pimProductMediaAssignment],
           '1b671a64-40d5-491e-99b0-da01ff1f3341',
         ).replace(/-/g, '');
+        console.log('generatedProductMediaId:', productMediaId);
 
         const mediaId = uuidv5(
           productMediaId,
@@ -277,10 +261,25 @@ export class MediaService {
 
         if (pimProductMediaAssignments[pimProductMediaAssignment] != null) {
           if (mediaData != null) {
-            const mediaInfo = {
-              id: mediaData.id,
-            };
+            const mediaInfo = mediaData.id;
 
+            const imgIndex =
+              Object.keys(pimProductMediaAssignments).indexOf(
+                pimProductMediaAssignment,
+              ) + 1;
+
+            const mediaFileName =
+              pimProductMediaAssignments[pimProductMediaAssignment];
+
+            const mediaTitle = mediaFileName.split('/').pop().split('.')[0];
+            await this.createProductMediaAssociation(
+              productMediaId,
+              shopProduct.id,
+              mediaId,
+              mediaTitle,
+              imgIndex,
+              shopApiClient,
+            );
             shopProductMediaList.push(mediaInfo);
 
             continue;
@@ -295,10 +294,16 @@ export class MediaService {
                   pimProductMediaAssignment,
                 ) + 1;
 
+              const mediaFileName =
+                pimProductMediaAssignments[pimProductMediaAssignment];
+
+              const mediaTitle = mediaFileName.split('/').pop().split('.')[0];
+
               await this.createProductMediaAssociation(
                 productMediaId,
                 shopProduct.id,
                 mediaId,
+                mediaTitle,
                 imgIndex,
                 shopApiClient,
               );
@@ -362,11 +367,6 @@ export class MediaService {
       const deletedMediaIds = shopProductMediaIds.filter(
         (media) => !pimProductMediaIds.includes(media),
       );
-
-      // console.log('shopProductMediaIds', shopProductMediaIds);
-      // console.log('pimProductMediaIds', pimProductMediaIds);
-
-      // console.log('deletedMediaIds', deletedMediaIds);
 
       for (const deletedMediaId of deletedMediaIds) {
         await shopApiClient.delete(

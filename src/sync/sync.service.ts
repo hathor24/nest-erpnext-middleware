@@ -22,9 +22,9 @@ export class SyncService {
         shopApiClient,
       );
 
-      // if (!isModified) {
-      //   return null;
-      // }
+      if (!isModified) {
+        return null;
+      }
 
       if (pimProduct.hasOwnProperty('variant_of')) {
         const pimProductParent = await this.productsService.getPimProductByName(
@@ -59,6 +59,30 @@ export class SyncService {
     }
   }
 
+  public async syncShopById(pimShopId: string) {
+    try {
+      const completelyCreatedShopProducts = [];
+      const shopApiClient =
+        await this.shopsService.createShopApiClientByShopId(pimShopId);
+      const pimShopProducts = await this.productsService.getPimShopProducts(
+        pimShopId,
+        shopApiClient,
+      );
+
+      for (const pimShopProduct of pimShopProducts) {
+        const createdShopProduct = await this.syncProductToShopById(
+          pimShopProduct,
+          pimShopId,
+        );
+        completelyCreatedShopProducts.push(createdShopProduct);
+      }
+
+      return completelyCreatedShopProducts;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   public async syncProductMediaToShopById(
     productNumber: string,
     pimShopId: string,
@@ -74,32 +98,6 @@ export class SyncService {
           pimShopId,
         );
       return createdShopProductMedia;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  public async syncShopById(pimShopId: string) {
-    try {
-      const completelyCreatedShopProducts = [];
-      const shopApiClient =
-        await this.shopsService.createShopApiClientByShopId(pimShopId);
-
-      const pimShopProducts = await this.productsService.getPimShopProducts(
-        pimShopId,
-        shopApiClient,
-      );
-
-      for (const pimShopProduct of pimShopProducts) {
-        const createdShopProduct = await this.syncProductToShopById(
-          pimShopProduct,
-          pimShopId,
-        );
-        console.log(createdShopProduct);
-        completelyCreatedShopProducts.push(createdShopProduct);
-      }
-
-      return completelyCreatedShopProducts;
     } catch (error) {
       throw error;
     }

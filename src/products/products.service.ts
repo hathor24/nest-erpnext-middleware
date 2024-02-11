@@ -632,7 +632,7 @@ export class ProductsService {
           (objekt) => objekt.shop === pimShopId,
         );
         if (assignedShop) {
-          pimShopProducts.push(pimProductComplete.name);
+          pimShopProducts.push(pimProductComplete);
         }
       }
 
