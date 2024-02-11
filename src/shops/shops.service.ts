@@ -1,69 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import axios, { AxiosInstance } from 'axios';
 import pimApiClient from '../api/pim-api-client';
+import { CommonService } from '../common/common.service';
 
 @Injectable()
 export class ShopsService {
-  async getShopApiClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const shopApiClient = this.createShopApiClient(shopApiData);
-      return shopApiClient;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async getShopBearerToken(
-    shopUrl: string,
-    clientId: string,
-    clientSecret: string,
-  ): Promise<string> {
-    const options = {
-      method: 'POST',
-      url: shopUrl + '/api/oauth/token',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      data: {
-        grant_type: 'client_credentials',
-        client_id: clientId,
-        client_secret: clientSecret,
-      },
-    };
-
-    try {
-      const { data } = await axios.request(options);
-      return data.access_token;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async createShopApiClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const { shopurl, apikey, apisecret } = shopApiData;
-
-      const token = await this.getShopBearerToken(shopurl, apikey, apisecret);
-
-      const shopApiClient = axios.create({
-        baseURL: shopurl,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      return shopApiClient;
-    } catch (error) {
-      throw error;
-    }
-  }
+  constructor(private readonly commonService: CommonService) {}
 
   async createShopApiClientByShopId(pimShopId: string) {
     const shopApiData = await this.getShopApiDataByShopId(pimShopId);
-    return this.createShopApiClient(shopApiData);
+    return this.commonService.createShopApiClient(shopApiData);
   }
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
