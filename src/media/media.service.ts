@@ -76,6 +76,20 @@ export class MediaService {
       return null;
     }
   }
+  public async getShopProductMediaFolderId(shopApiClient: any) {
+    const response = await shopApiClient.get('/api/media-folder');
+    const shopFolders = response.data.data;
+    const shopProductMediaFolder = shopFolders.find(
+      (item) => item.name === 'Product Media',
+    );
+    return shopProductMediaFolder.id;
+  }
+  public async getShopProductMedia(shopApiClient: any) {
+    const response = await shopApiClient.get('/api/product-media');
+    const productMedia = await response.data.data;
+    // throw 'end';
+    return productMedia;
+  }
 
   public async createProductMediaAssociation(
     productMediaId: string,
@@ -86,6 +100,8 @@ export class MediaService {
     shopApiClient: any,
   ) {
     try {
+      const mediaFolderId =
+        await this.getShopProductMediaFolderId(shopApiClient);
       const response = await shopApiClient.patch(`/api/product/${productId}`, {
         media: [
           {
@@ -94,7 +110,7 @@ export class MediaService {
             media: {
               id: mediaId,
               position: position,
-              mediaFolderId: '7fd73faecba94c45946f120aff7d5998',
+              mediaFolderId: mediaFolderId,
               title: mediaTitle,
             },
           },
@@ -103,9 +119,7 @@ export class MediaService {
       const createdAssociation = response.data;
 
       return createdAssociation;
-    } catch (error) {
-      console.log(error.response.data.errors);
-    }
+    } catch (error) {}
   }
 
   public async attachMediaRessourceToMediaObject(
@@ -254,7 +268,16 @@ export class MediaService {
             shopApiClient,
           );
         }
+        // const responseProductMedia = await shopApiClient.get(`/api/media`);
 
+        // const productMedia = responseProductMedia.data.data;
+
+        // const productMediaIdExists = await productMedia.find(
+        //   async (item) => item.id == productMediaId,
+        // );
+        // if (productMediaIdExists) {
+        //   continue;
+        // }
         if (pimProductMediaAssignments[pimProductMediaAssignment] != null) {
           if (mediaData != null) {
             const mediaInfo = mediaData.id;
@@ -353,11 +376,6 @@ export class MediaService {
       ).filter((value) => value != false && value !== undefined);
 
       const pimProductMediaIds = pimProductMediaUrls.map(async (url) => {
-        // const productMediaId = uuidv5(
-        //   url,
-        //   '1b671a64-40d5-491e-99b0-da01ff1f3341',
-        // ).replace(/-/g, '');
-
         const productMediaId = await this.commonService.generateUUID(url);
         return productMediaId;
       });

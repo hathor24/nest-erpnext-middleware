@@ -17,11 +17,17 @@ export class SyncController {
 
     const pimProductShopsIds =
       await this.productService.getPimProductShops(pimProduct);
-    const syncPromises = pimProductShopsIds.map(
-      async (shopId) => await this.syncProductToShopById(shopId, pimProduct),
-    );
+    const data = [];
+    for (const shopId of pimProductShopsIds) {
+      const response = await this.syncProductToShopById(shopId, pimProduct);
+      data.push(response);
+    }
 
-    const data = await Promise.all(syncPromises);
+    // const syncPromises = pimProductShopsIds.map(
+    //   async (shopId) => await this.syncProductToShopById(shopId, pimProduct),
+    // );
+
+    // const data = await Promise.all(syncPromises);
 
     const response = {
       status_code: HttpStatus.OK,

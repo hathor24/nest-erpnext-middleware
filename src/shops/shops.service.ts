@@ -32,9 +32,9 @@ export class ShopsService {
     }
   }
 
-  async getShopFromPim(shopNumber: string) {
+  async getShopFromPim(pimShopId: string) {
     try {
-      const response = await pimApiClient.get(`/Item%20Shop/${shopNumber}`);
+      const response = await pimApiClient.get(`/Item%20Shop/${pimShopId}`);
       const pimShop = response.data.data;
       return pimShop;
     } catch (error) {
@@ -80,10 +80,18 @@ export class ShopsService {
 
   public async processPimProductVisibilities(
     shopProduct: any,
+    pimProduct: any,
     pimShopId: string,
     shopApiClient: any,
   ) {
     try {
+      const assignedPimSalesChannels = pimProduct.custom_assigned_shops;
+      const shopDeactivated = assignedPimSalesChannels.find((item) => {
+        return item.active == 0 && item.shop == pimShopId;
+      });
+      if (shopDeactivated) {
+        return null;
+      }
       const salesChannel = await this.getShopSalesChannelInfo(
         pimShopId,
         shopApiClient,
@@ -122,6 +130,7 @@ export class ShopsService {
   public async removeShopProductVisibilities(
     shopProduct: any,
     pimProduct: any,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
@@ -141,11 +150,18 @@ export class ShopsService {
         (item) => item.storefrontid,
       );
 
-      const removedProductShops = shopProductSalesChannelIds.filter(
+      const removedProductShopIds = shopProductSalesChannelIds.filter(
         (item) => !pimProductStorefrontIds.includes(item),
       );
-      if (removedProductShops.length > 0) {
-        const removedProductShopsPromise = removedProductShops.map(
+
+      const shopDeactivated = assignedPimSalesChannels.find((item) => {
+        return item.active == 0 && item.shop == pimShopId;
+      });
+      const pimShopData = await this.getShopFromPim(shopDeactivated.shop);
+      removedProductShopIds.push(pimShopData.storefrontid);
+
+      if (removedProductShopIds.length > 0) {
+        const removedProductShopsPromise = removedProductShopIds.map(
           async (item) =>
             await this.removeSalesChannelFromProduct(
               shopProduct.id,
@@ -185,7 +201,6 @@ export class ShopsService {
     shopApiClient: any,
   ) {
     try {
-      console.log('remove');
       const response = await shopApiClient.delete(
         `/api/product/${productId}/visibilities/${visibilityId}`,
       );

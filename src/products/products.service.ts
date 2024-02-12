@@ -1,4 +1,3 @@
-// products.service.ts
 import { Injectable } from '@nestjs/common';
 import pimApiClient from '../api/pim-api-client';
 import { ManufacturersService } from '../manufacturers/manufacturers.service';
@@ -143,6 +142,7 @@ export class ProductsService {
         ],
         visibilities: await this.shopsService.processPimProductVisibilities(
           shopProduct,
+          pimProduct,
           pimShopId,
           shopApiClient,
         ),
@@ -208,6 +208,7 @@ export class ProductsService {
       await this.shopsService.removeShopProductVisibilities(
         shopProduct,
         pimProduct,
+        pimShopId,
         shopApiClient,
       );
       await this.mediaService.removeShopProductMedia(
@@ -237,7 +238,7 @@ export class ProductsService {
         return createdProduct;
       }
     } catch (error) {
-      console.log(error.response.data);
+      //console.log(error.response.data);
     }
   }
 
