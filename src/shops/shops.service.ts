@@ -60,7 +60,7 @@ export class ShopsService {
       return null;
     }
   }
-
+ 
   public async getShopStandardTaxInfo(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/tax`);
