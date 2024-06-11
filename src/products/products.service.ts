@@ -23,7 +23,6 @@ export class ProductsService {
   public async getShopProducts(shopApiClient: any) {
     try {
       const response = await shopApiClient.get(`/api/product`);
-
       const allShopProductsData = await response.data.data;
 
       return allShopProductsData;
@@ -73,11 +72,12 @@ export class ProductsService {
   ) {
     try {
       if (shopProduct !== undefined) {
-        //wenn keiner der pimProduct.custom_assigned_shops.shop === pimShopId ist, dann lösche das Produkt
+        //wenn keiner der pimProduct.custom_item_shop_list.name === pimShopId ist, dann lösche das Produkt
         const existingShops = [];
-        for (const shop of pimProduct.custom_assigned_shops) {
+        for (const shop of pimProduct.custom_item_shop_list) {
           const shopExists = await this.shopsService.getShopSalesChannelInfo(
-            shop.shop,
+            // shop.shop,
+            shop.shopname,
             shopApiClient,
           );
           existingShops.push(shopExists);
@@ -99,9 +99,11 @@ export class ProductsService {
   ) {
     try {
       const allShopProductsData = await this.getShopProducts(shopApiClient);
+
       const shopProduct = allShopProductsData.find(
         (obj) => obj.productNumber === pimProduct.item_code,
       );
+
       const data = {
         parentId: (
           await this.getShopProductByProductNumber(
@@ -148,7 +150,8 @@ export class ProductsService {
         ),
         /* required */
         productNumber: pimProduct.item_code,
-        active: pimProduct.custom_active == 0 ? false : true,
+        active: await this.getPimProductActive(pimProduct, pimShopId),
+        // active: pimProduct.custom_active == 0 ? false : true,
         variantListingConfig: await this.getVariantListingConfig(
           pimProduct,
           shopApiClient,
@@ -171,6 +174,7 @@ export class ProductsService {
         packUnitPlural: pimProduct.custom_pack_unit_plural,
         customFields: {
           br_pim_modified: pimProduct.modified,
+          bioraum_benefit_field: pimProduct.custom_benefits,
         },
         availableStock: pimProduct.custom_stock,
         /* required */
@@ -216,6 +220,7 @@ export class ProductsService {
         pimProduct,
         shopApiClient,
       );
+      // console.log('data', data);
       // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
 
       if (shopProduct !== undefined) {
@@ -261,10 +266,10 @@ export class ProductsService {
 
   public async getPimProductPrice(pimProduct: any, pimShopId: string) {
     try {
-      for (const shop of pimProduct.custom_assigned_shops) {
-        if (shop.shop === pimShopId) {
-          return shop.product_price
-            ? shop.product_price
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          return shop.individual_price
+            ? shop.individual_price
             : pimProduct.custom_price;
         }
       }
@@ -276,10 +281,10 @@ export class ProductsService {
 
   public async getPimProductDescription(pimProduct: any, pimShopId: string) {
     try {
-      for (const shop of pimProduct.custom_assigned_shops) {
-        if (shop.shop === pimShopId) {
-          return shop.product_description
-            ? shop.product_description
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          return shop.individual_description
+            ? shop.individual_description
             : pimProduct.description;
         }
       }
@@ -288,12 +293,33 @@ export class ProductsService {
       return null;
     }
   }
+  public async getPimProductActive(pimProduct: any, pimShopId: string) {
+    try {
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          // if (shop.active == 0) {
+          //   return false;
+          // } else {
+          //   return true;
+          // }
+          return shop.active == 0 ? false : true;
+          // ? shop.individual_description
+          // : pimProduct.description;
+        }
+      }
+    } catch (error) {
+      console.log('Product activation not found');
+      return null;
+    }
+  }
 
   public async getPimProductShops(pimProduct: any) {
     try {
       const shopsIds = [];
-      for (const shop of pimProduct.custom_assigned_shops) {
-        shopsIds.push(shop.shop);
+      for (const shop of pimProduct.custom_item_shop_list) {
+        // shopsIds.push(shop.shop);
+        // console.log('shop', shop);
+        shopsIds.push(shop.shopname);
       }
       return shopsIds;
     } catch (error) {
@@ -377,6 +403,8 @@ export class ProductsService {
                     option.id,
                     shopApiClient,
                   );
+                // console.log('configuratorSetting', configuratorSetting);
+
                 if (configuratorSetting) {
                   shopProductPropertyOptions.push({
                     id: configuratorSetting.id,
@@ -395,6 +423,7 @@ export class ProductsService {
             }
           }
         }
+        // console.log('shopProductPropertyOptions', shopProductPropertyOptions);
         return shopProductPropertyOptions;
       }
     } catch (error) {
@@ -448,7 +477,11 @@ export class ProductsService {
               },
             ],
             productNumber: variantPimProduct.name,
-            active: variantPimProduct.custom_active == 0 ? false : true,
+            active: await this.getPimProductActive(
+              variantPimProduct,
+              pimShopId,
+            ),
+            // active: variantPimProduct.custom_active == 0 ? false : true,
             manufacturerNumber: variantPimProduct.custom_manufacturer_number,
             ean: variantPimProduct.custom_ean,
             purchaseUnit: variantPimProduct.custom_purchase_unit,
@@ -461,7 +494,12 @@ export class ProductsService {
             length: variantPimProduct.custom_length,
             name: variantPimProduct.item_name,
             keywords: variantPimProduct.custom_keywords,
-            description: variantPimProduct.description,
+            description: await this.getPimProductDescription(
+              variantPimProduct,
+              pimShopId,
+            ),
+
+            // description: variantPimProduct.description,
             // packUnit: variantPimProduct.custom_pack_unit,
             // packUnitPlural: variantPimProduct.custom_pack_unit_plural,
             customFields: {
@@ -554,13 +592,14 @@ export class ProductsService {
         const response = await shopApiClient.get(
           `/api/product?filter[productNumber]=${pimProduct.name}`,
         );
+
         const shopProduct = response.data.data[0];
 
         pimProductComplete.uuid =
           shopProduct != undefined ? shopProduct.id : null;
 
-        const assignedShop = pimProductComplete.custom_assigned_shops.some(
-          (objekt) => objekt.shop === pimShopId,
+        const assignedShop = pimProductComplete.custom_item_shop_list.some(
+          (objekt) => objekt.shopname === pimShopId,
         );
 
         if (
@@ -608,8 +647,8 @@ export class ProductsService {
           pimProductComplete.uuid =
             shopProduct !== undefined ? shopProduct.id : null;
 
-          const assignedShop = pimProductComplete.custom_assigned_shops.find(
-            (objekt) => objekt.shop === pimShopId,
+          const assignedShop = pimProductComplete.custom_item_shop_list.find(
+            (objekt) => objekt.shopname === pimShopId,
           );
 
           if (assignedShop) {
@@ -657,8 +696,8 @@ export class ProductsService {
 
         pimProductComplete.uuid =
           shopProduct != undefined ? shopProduct.id : null;
-        const assignedShop = pimProductComplete.custom_assigned_shops.some(
-          (objekt) => objekt.shop === pimShopId,
+        const assignedShop = pimProductComplete.custom_item_shop_list.some(
+          (objekt) => objekt.shopname === pimShopId,
         );
         if (assignedShop) {
           pimShopProducts.push(pimProductComplete);

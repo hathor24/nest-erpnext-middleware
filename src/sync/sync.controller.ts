@@ -17,9 +17,14 @@ export class SyncController {
 
     const pimProductShopsIds =
       await this.productService.getPimProductShops(pimProduct);
+
     const data = [];
     for (const shopId of pimProductShopsIds) {
-      const response = await this.syncProductToShopById(shopId, pimProduct);
+      const response = await this.syncService.syncProductToShopById(
+        pimProduct,
+        shopId,
+      );
+
       data.push(response);
     }
 

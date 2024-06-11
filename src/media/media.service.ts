@@ -148,12 +148,12 @@ export class MediaService {
 
   async createShopApiFileClient(shopApiData: any): Promise<AxiosInstance> {
     try {
-      const { shopurl, apikey, apisecret } = shopApiData;
+      const { shop_url, api_id, api_secret } = shopApiData;
 
-      const token = await this.getShopBearerToken(shopurl, apikey, apisecret);
+      const token = await this.getShopBearerToken(shop_url, api_id, api_secret);
 
       const shopApiFileClient = axios.create({
-        baseURL: shopurl,
+        baseURL: shop_url,
         headers: {
           'Content-Type': 'image/jpg',
           Authorization: `Bearer ${token}`,
@@ -183,7 +183,7 @@ export class MediaService {
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
-      const response = await pimApiClient.get(`/Item%20Shop/${shopId}`);
+      const response = await pimApiClient.get(`/Shop/${shopId}`);
 
       const shopApiData = response.data.data;
       return shopApiData;

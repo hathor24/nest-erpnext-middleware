@@ -37,22 +37,22 @@ export class CommonService {
       throw error;
     }
   }
-  async getShopApiClient(shopApiData: any): Promise<AxiosInstance> {
-    try {
-      const shopApiClient = this.createShopApiClient(shopApiData);
-      return shopApiClient;
-    } catch (error) {
-      throw error;
-    }
-  }
+  // async getShopApiClient(shopApiData: any): Promise<AxiosInstance> {
+  //   try {
+  //     const shopApiClient = this.createShopApiClient(shopApiData);
+  //     return shopApiClient;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
   async createShopApiClient(shopApiData: any): Promise<AxiosInstance> {
     try {
-      const { shopurl, apikey, apisecret } = shopApiData;
+      const { shop_url, api_id, api_secret } = shopApiData;
 
-      const token = await this.getShopBearerToken(shopurl, apikey, apisecret);
+      const token = await this.getShopBearerToken(shop_url, api_id, api_secret);
 
       const shopApiClient = axios.create({
-        baseURL: shopurl,
+        baseURL: shop_url,
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',

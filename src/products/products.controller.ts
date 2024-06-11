@@ -9,7 +9,7 @@ export class ProductsController {
     private readonly shopsService: ShopsService,
   ) {}
 
-  @Get('/erp/:productNumber')
+  @Get('/pim/:productNumber')
   async getProductFromPim(@Param('productNumber') productNumber: string) {
     const pimProduct =
       await this.productsService.getPimProductByName(productNumber);
@@ -19,6 +19,7 @@ export class ProductsController {
   async getModifiedProducts(@Param('shopId') shopId: string) {
     const shopApiClient =
       await this.shopsService.createShopApiClientByShopId(shopId);
+
     const modifiedProducts = await this.productsService.getModifiedProducts(
       shopId,
       shopApiClient,

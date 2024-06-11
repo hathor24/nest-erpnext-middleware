@@ -339,7 +339,7 @@ export class PropertiesService {
     try {
       const shopProductProperties: any = [];
       const pimProductPropertyIds: any = [];
-      const pimProductProperties: any = productData.custom_properties;
+      const pimProductProperties: any = productData.custom_property_list;
 
       for (const pimProductProperty of pimProductProperties) {
         const shopPropertyGroupData = await this.getShopPropertyGroupByName(

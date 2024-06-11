@@ -13,7 +13,7 @@ export class ShopsService {
 
   async getShopApiDataByShopId(shopId: string): Promise<any> {
     try {
-      const response = await pimApiClient.get(`/Item%20Shop/${shopId}`);
+      const response = await pimApiClient.get(`/Shop/${shopId}`);
 
       const shopApiData = response.data.data;
       return shopApiData;
@@ -24,7 +24,7 @@ export class ShopsService {
 
   async getShopsFromPim() {
     try {
-      const response = await pimApiClient.get('/Item%20Shop');
+      const response = await pimApiClient.get('/Shop');
       const pimShops = response.data.data;
       return pimShops;
     } catch (error) {
@@ -34,7 +34,7 @@ export class ShopsService {
 
   async getShopFromPim(pimShopId: string) {
     try {
-      const response = await pimApiClient.get(`/Item%20Shop/${pimShopId}`);
+      const response = await pimApiClient.get(`/Shop/${pimShopId}`);
       const pimShop = response.data.data;
       return pimShop;
     } catch (error) {
@@ -51,7 +51,7 @@ export class ShopsService {
       const salesChannels = await response.data.data;
 
       for (const salesChannel of salesChannels) {
-        if (salesChannel.id === pimShopData.storefrontid) {
+        if (salesChannel.id === pimShopData.sales_channel_id) {
           return salesChannel;
         }
       }
@@ -85,9 +85,10 @@ export class ShopsService {
     shopApiClient: any,
   ) {
     try {
-      const assignedPimSalesChannels = pimProduct.custom_assigned_shops;
+      const assignedPimSalesChannels = pimProduct.custom_item_shop_list;
       const shopDeactivated = assignedPimSalesChannels.find((item) => {
-        return item.active == 0 && item.shop == pimShopId;
+        // return item.active == 0 && item.name== pimShopId;
+        return item.active == 0 && item.shopname == pimShopId;
       });
       if (shopDeactivated) {
         return null;
@@ -141,13 +142,14 @@ export class ShopsService {
       const shopProductSalesChannelIds = productSalesChannels.map(
         (item) => item.salesChannelId,
       );
-      const assignedPimSalesChannels = pimProduct.custom_assigned_shops;
+      const assignedPimSalesChannels = pimProduct.custom_item_shop_list;
       const pimSalesChannelsPromise = await assignedPimSalesChannels.map(
-        async (item) => await this.getShopFromPim(item.shop),
+        // async (item) => await this.getShopFromPim(item.shop),
+        async (item) => await this.getShopFromPim(item.shopname),
       );
       const pimSalesChannels = await Promise.all(pimSalesChannelsPromise);
       const pimProductStorefrontIds = pimSalesChannels.map(
-        (item) => item.storefrontid,
+        (item) => item.sales_channel_id,
       );
 
       const removedProductShopIds = shopProductSalesChannelIds.filter(
@@ -155,10 +157,10 @@ export class ShopsService {
       );
 
       const shopDeactivated = assignedPimSalesChannels.find((item) => {
-        return item.active == 0 && item.shop == pimShopId;
+        return item.active == 0 && item.shopname == pimShopId;
       });
-      const pimShopData = await this.getShopFromPim(shopDeactivated.shop);
-      removedProductShopIds.push(pimShopData.storefrontid);
+      const pimShopData = await this.getShopFromPim(shopDeactivated.shopname);
+      removedProductShopIds.push(pimShopData.sales_channel_id);
 
       if (removedProductShopIds.length > 0) {
         const removedProductShopsPromise = removedProductShopIds.map(

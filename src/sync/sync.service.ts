@@ -16,7 +16,6 @@ export class SyncService {
       const completelyCreatedShopProduct = { info: {}, media: {} };
       const shopApiClient =
         await this.shopsService.createShopApiClientByShopId(pimShopId);
-
       const isModified = await this.productsService.getModifiedProduct(
         pimProduct,
         shopApiClient,

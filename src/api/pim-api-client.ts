@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 const pimApiClient = axios.create({
-  baseURL: 'http://192.168.8.57:8080/api/resource',
+  baseURL: 'https://erpnext.brlab.duckdns.org/api/resource',
   headers: {
-    Authorization: 'token 032e68d5be4edfc:b44c9bd45d89b9d',
+    Authorization: 'token b971459f4f887dd:ddf03957c8783c4',
     'Content-Type': 'application/json',
   },
 });
