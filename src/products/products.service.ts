@@ -218,6 +218,7 @@ export class ProductsService {
       await this.mediaService.removeShopProductMedia(
         shopProduct,
         pimProduct,
+        pimShopId,
         shopApiClient,
       );
       // console.log('data', data);
@@ -297,14 +298,7 @@ export class ProductsService {
     try {
       for (const shop of pimProduct.custom_item_shop_list) {
         if (shop.shopname === pimShopId) {
-          // if (shop.active == 0) {
-          //   return false;
-          // } else {
-          //   return true;
-          // }
           return shop.active == 0 ? false : true;
-          // ? shop.individual_description
-          // : pimProduct.description;
         }
       }
     } catch (error) {

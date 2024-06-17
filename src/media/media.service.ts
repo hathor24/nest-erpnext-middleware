@@ -218,7 +218,6 @@ export class MediaService {
       throw error;
     }
   }
-
   public async processPimProductMedia(
     pimProduct: any,
     shopProduct: any,
@@ -226,17 +225,40 @@ export class MediaService {
     shopApiClient: any,
   ) {
     try {
-      const pimProductMediaAssignments: any = {
-        coverImage: pimProduct.image,
-        image01: pimProduct.custom_attachimg01,
-        image02: pimProduct.custom_attachimg02,
-        image03: pimProduct.custom_attachimg03,
-        image04: pimProduct.custom_attachimg04,
-        image05: pimProduct.custom_attachimg05,
-        image06: pimProduct.custom_attachimg06,
-        image07: pimProduct.custom_attachimg07,
-        image08: pimProduct.custom_attachimg08,
-      };
+      let pimProductMediaAssignments: any = {};
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          if (
+            typeof shop.individual_attachcover === 'string' &&
+            shop.individual_attachcover.length > 0
+          ) {
+            pimProductMediaAssignments = {
+              coverImage: shop.individual_attachcover,
+              image01: shop.individual_attachimg01,
+              image02: shop.individual_attachimg02,
+              image03: shop.individual_attachimg03,
+              image04: shop.individual_attachimg04,
+              image05: shop.individual_attachimg05,
+              image06: shop.individual_attachimg06,
+              image07: shop.individual_attachimg07,
+              image08: shop.individual_attachimg08,
+            };
+          } else {
+            pimProductMediaAssignments = {
+              coverImage: pimProduct.image,
+              image01: pimProduct.custom_attachimg01,
+              image02: pimProduct.custom_attachimg02,
+              image03: pimProduct.custom_attachimg03,
+              image04: pimProduct.custom_attachimg04,
+              image05: pimProduct.custom_attachimg05,
+              image06: pimProduct.custom_attachimg06,
+              image07: pimProduct.custom_attachimg07,
+              image08: pimProduct.custom_attachimg08,
+            };
+          }
+        }
+      }
+
       const shopProductMediaList: any = [];
 
       const allValuesNull = Object.values(pimProductMediaAssignments).every(
@@ -348,23 +370,48 @@ export class MediaService {
   public async removeShopProductMedia(
     shopProduct: any,
     pimProduct: any,
+    pimShopId: string,
     shopApiClient: any,
   ) {
     try {
       if (!shopProduct) {
         return null;
       }
-      const pimProductMediaAssignments: any = {
-        coverImage: pimProduct.image,
-        image01: pimProduct.custom_attachimg01,
-        image02: pimProduct.custom_attachimg02,
-        image03: pimProduct.custom_attachimg03,
-        image04: pimProduct.custom_attachimg04,
-        image05: pimProduct.custom_attachimg05,
-        image06: pimProduct.custom_attachimg06,
-        image07: pimProduct.custom_attachimg07,
-        image08: pimProduct.custom_attachimg08,
-      };
+
+      let pimProductMediaAssignments: any = {};
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          if (
+            typeof shop.individual_attachcover === 'string' &&
+            shop.individual_attachcover.length > 0
+          ) {
+            pimProductMediaAssignments = {
+              coverImage: shop.individual_attachcover,
+              image01: shop.individual_attachimg01,
+              image02: shop.individual_attachimg02,
+              image03: shop.individual_attachimg03,
+              image04: shop.individual_attachimg04,
+              image05: shop.individual_attachimg05,
+              image06: shop.individual_attachimg06,
+              image07: shop.individual_attachimg07,
+              image08: shop.individual_attachimg08,
+            };
+          } else {
+            pimProductMediaAssignments = {
+              coverImage: pimProduct.image,
+              image01: pimProduct.custom_attachimg01,
+              image02: pimProduct.custom_attachimg02,
+              image03: pimProduct.custom_attachimg03,
+              image04: pimProduct.custom_attachimg04,
+              image05: pimProduct.custom_attachimg05,
+              image06: pimProduct.custom_attachimg06,
+              image07: pimProduct.custom_attachimg07,
+              image08: pimProduct.custom_attachimg08,
+            };
+          }
+        }
+      }
+
       const productMediaData = await this.getMediaFromProduct(
         shopProduct.id,
         shopApiClient,

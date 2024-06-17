@@ -20,8 +20,13 @@ export class SyncService {
         pimProduct,
         shopApiClient,
       );
+      const isSyncActive =
+        pimProduct.custom_item_shop_list
+          .filter((shop) => shop.shopname === pimShopId)
+          .map((shop) => shop.shop_sync_active)
+          .pop() === 1 || false;
 
-      if (!isModified) {
+      if (!isModified || !isSyncActive) {
         return null;
       }
 
