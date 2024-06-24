@@ -24,7 +24,9 @@ export class ShopsService {
 
   async getShopsFromPim() {
     try {
-      const response = await pimApiClient.get('/Shop');
+      const response = await pimApiClient.get(
+        '/Shop?limit_start=0&limit_page_length=None',
+      );
       const pimShops = response.data.data;
       return pimShops;
     } catch (error) {

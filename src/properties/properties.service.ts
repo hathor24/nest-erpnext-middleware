@@ -354,6 +354,7 @@ export class PropertiesService {
               pimProductProperty.property_value,
               shopPropertyGroupData.id,
             );
+
           if (shopPropertyGroupOptionData != null) {
             const shopPropertyOption = {
               id: shopPropertyGroupOptionData.id,
@@ -399,7 +400,11 @@ export class PropertiesService {
           shopProductProperties.push(shopPropertyOption);
         }
       }
-      if (shopProduct) {
+      if (
+        shopProduct &&
+        shopProduct.propertyIds &&
+        shopProduct.propertyIds.length > 0
+      ) {
         for (const shopProductPropertyId of shopProduct.propertyIds) {
           if (
             !pimProductPropertyIds.includes(shopProductPropertyId) &&
@@ -415,7 +420,7 @@ export class PropertiesService {
       }
       return shopProductProperties;
     } catch (error) {
-      // console.log(error);
+      console.log(error);
       return null;
     }
   }

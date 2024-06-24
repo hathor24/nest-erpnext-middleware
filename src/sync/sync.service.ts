@@ -72,6 +72,7 @@ export class SyncService {
         pimShopId,
         shopApiClient,
       );
+      // console.log('flo', pimShopProducts);
 
       for (const pimShopProduct of pimShopProducts) {
         const createdShopProduct = await this.syncProductToShopById(

@@ -7,7 +7,8 @@ async function bootstrap() {
   // CORS aktivieren für die spezifische Origin (https://erpnext.brlab.duckdns.org)
   app.use(
     cors({
-      origin: 'https://erpnext.brlab.duckdns.org',
+      //origin: 'https://erpnext.brlab.duckdns.org',
+      origin: 'http://192.168.8.57:8080',
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
       preflightContinue: false,
       optionsSuccessStatus: 204,

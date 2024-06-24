@@ -43,10 +43,12 @@ export class ProductsService {
     shopApiClient: any,
   ) {
     try {
+      // console.log('productNumber', productNumber);
       const response = await shopApiClient.get(
         `/api/product?filter[productNumber]=${productNumber}`,
       );
       const shopProduct = response.data.data;
+      // console.log('shopProduct', shopProduct);
       if (shopProduct.length === 0) {
         return { id: null };
       }
@@ -89,6 +91,40 @@ export class ProductsService {
     } catch (error) {
       console.log('Shop product not found');
       return null;
+    }
+  }
+
+  public async createShopProductShell(
+    variantProduct: any,
+    taxId: string,
+    currencyId: string,
+    pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const data = {
+        taxId: taxId,
+        price: [
+          {
+            currencyId: currencyId,
+            gross: 0,
+            net: 0,
+            linked: true,
+          },
+        ],
+        productNumber: variantProduct.item_code,
+        name: 'dummy',
+        stock: 0,
+      };
+      const response = await shopApiClient.post(
+        '/api/product?_response=basic',
+        data,
+      );
+      console.log('response', response);
+
+      return response;
+    } catch (error) {
+      console.log('Creation Error', error.response.data);
     }
   }
 
@@ -169,12 +205,15 @@ export class ProductsService {
         /* required */
         name: pimProduct.item_name,
         keywords: pimProduct.custom_keywords,
+        // metaDescription: pimProduct.custom_metadescription_short_description,
         description: await this.getPimProductDescription(pimProduct, pimShopId),
         packUnit: pimProduct.custom_pack_unit,
         packUnitPlural: pimProduct.custom_pack_unit_plural,
         customFields: {
-          br_pim_modified: pimProduct.modified,
+          // br_pim_modified: pimProduct.modified,
           bioraum_benefit_field: pimProduct.custom_benefits,
+          bioraum_short_desc:
+            pimProduct.custom_metadescription_short_description,
         },
         availableStock: pimProduct.custom_stock,
         /* required */
@@ -221,10 +260,19 @@ export class ProductsService {
         pimShopId,
         shopApiClient,
       );
-      // console.log('data', data);
+      console.log('data', data);
       // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
-
       if (shopProduct !== undefined) {
+        console.log('update - shopProduct', shopProduct);
+        // TODO: if variante nicht in shop, dann post für varianten produkt
+        // if (shopProduct.parentId !== data.parentId) {
+        //   const response = await shopApiClient.post(
+        //     '/api/product?_response=basic',
+        //     data,
+        //   );
+        //   const createdProduct = response.data.data;
+        // }
+
         const response = await shopApiClient.patch(
           `/api/product/${shopProduct.id}?_response=basic`,
           data,
@@ -234,6 +282,7 @@ export class ProductsService {
 
         return updatedProduct;
       } else {
+        console.log('create');
         const response = await shopApiClient.post(
           '/api/product?_response=basic',
           data,
@@ -244,7 +293,7 @@ export class ProductsService {
         return createdProduct;
       }
     } catch (error) {
-      //console.log(error.response.data);
+      console.log('Creation Error', error.response.data);
     }
   }
 
@@ -348,7 +397,9 @@ export class ProductsService {
 
   public async getPimProducts() {
     try {
-      const response = await pimApiClient.get('/Item');
+      const response = await pimApiClient.get(
+        '/Item?limit_start=0&limit_page_length=None',
+      );
       const pimProducts = response.data.data;
       return pimProducts;
     } catch (error) {
@@ -374,6 +425,7 @@ export class ProductsService {
       const shopProductPropertyOptions: any = [];
       if (pimProduct.has_variants === 1) {
         const pimProducts = await this.getPimProducts();
+        // console.log('pimProducts', pimProducts);
 
         for (const item of pimProducts) {
           const variantPimProduct = await this.getPimProductByName(item.name);
@@ -441,13 +493,31 @@ export class ProductsService {
             variantPimProduct.item_code,
             shopApiClient,
           );
+          const currencyId = (
+            await this.shopsService.getShopSalesChannelInfo(
+              pimShopId,
+              shopApiClient,
+            )
+          ).currencyId;
+          const taxId = (
+            await this.shopsService.getShopStandardTaxInfo(shopApiClient)
+          ).id;
+          let id = (
+            await this.getShopProductByProductNumber(
+              variantPimProduct.item_code,
+              shopApiClient,
+            )
+          ).id;
+          if (id === null) {
+            const createdVariant = await this.createShopProductShell(
+              variantPimProduct,
+              pimShopId,
+              shopApiClient,
+            );
+            id = createdVariant.id;
+          }
           const child = {
-            id: (
-              await this.getShopProductByProductNumber(
-                variantPimProduct.item_code,
-                shopApiClient,
-              )
-            ).id,
+            id: id,
             price: [
               {
                 currencyId: (
@@ -497,7 +567,7 @@ export class ProductsService {
             // packUnit: variantPimProduct.custom_pack_unit,
             // packUnitPlural: variantPimProduct.custom_pack_unit_plural,
             customFields: {
-              br_pim_modified: variantPimProduct.modified,
+              // br_pim_modified: variantPimProduct.modified,
             },
             availableStock: variantPimProduct.custom_stock,
             stock: variantPimProduct.custom_stock,
@@ -574,7 +644,9 @@ export class ProductsService {
 
   public async getModifiedProducts(pimShopId: string, shopApiClient: any) {
     try {
-      const response = await pimApiClient.get('/Item');
+      const response = await pimApiClient.get(
+        '/Item?limit_start=0&limit_page_length=None',
+      );
       const pimProducts = response.data.data;
 
       const modifiedProducts: any = [];
@@ -613,7 +685,9 @@ export class ProductsService {
 
   public async getModifiedMainProducts(pimShopId: string, shopApiClient: any) {
     try {
-      const response = await pimApiClient.get('/Item');
+      const response = await pimApiClient.get(
+        '/Item?limit_start=0&limit_page_length=None',
+      );
       const pimProducts = response.data.data;
 
       const modifiedMainProducts: Set<string> = new Set();
@@ -677,7 +751,9 @@ export class ProductsService {
   public async getPimShopProducts(pimShopId: string, shopApiClient: any) {
     try {
       const pimShopProducts = [];
-      const response = await pimApiClient.get('/Item');
+      const response = await pimApiClient.get(
+        '/Item?limit_start=0&limit_page_length=None',
+      );
       const pimProducts = response.data.data;
       for (const pimProduct of pimProducts) {
         const pimProductComplete = await this.getPimProductByName(

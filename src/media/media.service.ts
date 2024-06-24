@@ -339,7 +339,6 @@ export class MediaService {
                 pimProductMediaAssignments[pimProductMediaAssignment];
 
               const mediaTitle = mediaFileName.split('/').pop().split('.')[0];
-
               await this.createProductMediaAssociation(
                 productMediaId,
                 shopProduct.id,
@@ -362,7 +361,7 @@ export class MediaService {
       }
       return shopProductMediaList;
     } catch (error) {
-      console.log('Error processing media', error);
+      console.log('Error processing media', error.response.data.errors[0]);
       return null;
     }
   }
