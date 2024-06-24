@@ -120,11 +120,10 @@ export class ProductsService {
         '/api/product?_response=basic',
         data,
       );
-      console.log('response', response);
 
-      return response;
+      return response.data.data;
     } catch (error) {
-      console.log('Creation Error', error.response.data);
+      console.log('Shell Creation Error', error.response.data);
     }
   }
 
@@ -260,10 +259,10 @@ export class ProductsService {
         pimShopId,
         shopApiClient,
       );
-      console.log('data', data);
+      // console.log('data', data);
       // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
       if (shopProduct !== undefined) {
-        console.log('update - shopProduct', shopProduct);
+        // console.log('update - shopProduct', shopProduct);
         // TODO: if variante nicht in shop, dann post für varianten produkt
         // if (shopProduct.parentId !== data.parentId) {
         //   const response = await shopApiClient.post(
@@ -511,6 +510,8 @@ export class ProductsService {
           if (id === null) {
             const createdVariant = await this.createShopProductShell(
               variantPimProduct,
+              taxId,
+              currencyId,
               pimShopId,
               shopApiClient,
             );
@@ -520,12 +521,7 @@ export class ProductsService {
             id: id,
             price: [
               {
-                currencyId: (
-                  await this.shopsService.getShopSalesChannelInfo(
-                    pimShopId,
-                    shopApiClient,
-                  )
-                ).currencyId,
+                currencyId: currencyId,
                 gross: await this.getPimProductPrice(
                   variantPimProduct,
                   pimShopId,
