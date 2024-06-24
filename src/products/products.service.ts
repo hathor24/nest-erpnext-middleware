@@ -259,7 +259,7 @@ export class ProductsService {
         pimShopId,
         shopApiClient,
       );
-      // console.log('data', data);
+      console.log('data', data);
       // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
       if (shopProduct !== undefined) {
         // console.log('update - shopProduct', shopProduct);
@@ -507,7 +507,11 @@ export class ProductsService {
               shopApiClient,
             )
           ).id;
-          if (id === null) {
+          const parentExists = await this.getShopProductByProductNumber(
+            pimProduct.item_code,
+            shopApiClient,
+          );
+          if (id === null && parentExists.id !== null) {
             const createdVariant = await this.createShopProductShell(
               variantPimProduct,
               taxId,
