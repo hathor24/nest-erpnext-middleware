@@ -209,7 +209,7 @@ export class ProductsService {
         packUnit: pimProduct.custom_pack_unit,
         packUnitPlural: pimProduct.custom_pack_unit_plural,
         customFields: {
-          // br_pim_modified: pimProduct.modified,
+          br_pim_modified: pimProduct.modified,
           bioraum_benefit_field: pimProduct.custom_benefits,
           bioraum_short_desc:
             pimProduct.custom_metadescription_short_description,
@@ -259,32 +259,29 @@ export class ProductsService {
         pimShopId,
         shopApiClient,
       );
-      console.log('data', data);
+      // console.log('data', data);
       // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
       if (shopProduct !== undefined) {
-        // console.log('update - shopProduct', shopProduct);
-        // TODO: if variante nicht in shop, dann post für varianten produkt
-        // if (shopProduct.parentId !== data.parentId) {
-        //   const response = await shopApiClient.post(
-        //     '/api/product?_response=basic',
-        //     data,
-        //   );
-        //   const createdProduct = response.data.data;
-        // }
-
+        // throw error;
         const response = await shopApiClient.patch(
           `/api/product/${shopProduct.id}?_response=basic`,
           data,
+        );
+        console.log(
+          `updated: ${pimProduct.item_name} - ${pimProduct.item_code}`,
         );
 
         const updatedProduct = response.data.data;
 
         return updatedProduct;
       } else {
-        console.log('create');
+        // throw error;
         const response = await shopApiClient.post(
           '/api/product?_response=basic',
           data,
+        );
+        console.log(
+          `created: ${pimProduct.item_name} - ${pimProduct.item_code}`,
         );
 
         const createdProduct = response.data.data;
@@ -292,7 +289,10 @@ export class ProductsService {
         return createdProduct;
       }
     } catch (error) {
-      console.log('Creation Error', error.response.data);
+      console.log(
+        `Creation Error of Product: ${pimProduct.item_name} - ${pimProduct.item_code}`,
+        error.response.data,
+      );
     }
   }
 
@@ -334,7 +334,7 @@ export class ProductsService {
         if (shop.shopname === pimShopId) {
           return shop.individual_description
             ? shop.individual_description
-            : pimProduct.description;
+            : pimProduct.custom_long_description;
         }
       }
     } catch (error) {
@@ -359,8 +359,6 @@ export class ProductsService {
     try {
       const shopsIds = [];
       for (const shop of pimProduct.custom_item_shop_list) {
-        // shopsIds.push(shop.shop);
-        // console.log('shop', shop);
         shopsIds.push(shop.shopname);
       }
       return shopsIds;
@@ -423,53 +421,67 @@ export class ProductsService {
     try {
       const shopProductPropertyOptions: any = [];
       if (pimProduct.has_variants === 1) {
-        const pimProducts = await this.getPimProducts();
+        // const pimProducts = await this.getPimProducts();
         // console.log('pimProducts', pimProducts);
+        const pimProductsFiltered = await pimApiClient.get(
+          `/Item?filters=[["Item","variant_of","=","${pimProduct.item_code}"]]&limit_start=0&limit_page_length=None`,
+        );
+        // console.log('pimProductsFiltered', pimProductsFiltered.data.data, 'FLORIAN');
+        // throw error;
 
-        for (const item of pimProducts) {
+        for (const item of pimProductsFiltered.data.data) {
           const variantPimProduct = await this.getPimProductByName(item.name);
 
-          if (variantPimProduct.variant_of === pimProduct.item_code) {
-            const shopProduct = await this.getShopProductByProductNumber(
-              pimProduct.item_code,
-              shopApiClient,
-            );
+          // if (variantPimProduct.variant_of === pimProduct.item_code) {
+          const shopProduct = await this.getShopProductByProductNumber(
+            pimProduct.item_code,
+            shopApiClient,
+          );
 
-            for (const attribute of variantPimProduct.attributes) {
-              const option: any =
-                await this.propertiesService.getShopProductPropertyOption(
-                  attribute,
+          for (const attribute of variantPimProduct.attributes) {
+            const option: any =
+              await this.propertiesService.getShopProductPropertyOption(
+                attribute,
+                shopApiClient,
+              );
+            if (shopProduct && option) {
+              const configuratorSetting: any =
+                await this.configuratorSettingsService.getShopProductConfiguratorSettingByOptionId(
+                  shopProduct.id,
+                  option.id,
                   shopApiClient,
                 );
-              if (shopProduct && option) {
-                const configuratorSetting: any =
-                  await this.configuratorSettingsService.getShopProductConfiguratorSettingByOptionId(
-                    shopProduct.id,
-                    option.id,
-                    shopApiClient,
-                  );
-                // console.log('configuratorSetting', configuratorSetting);
+              // console.log('configuratorSetting', configuratorSetting);
 
-                if (configuratorSetting) {
-                  shopProductPropertyOptions.push({
-                    id: configuratorSetting.id,
-                    optionId: option.id,
-                  });
-                } else {
-                  shopProductPropertyOptions.push({
-                    optionId: option.id,
-                  });
-                }
+              if (configuratorSetting) {
+                shopProductPropertyOptions.push({
+                  id: configuratorSetting.id,
+                  optionId: option.id,
+                });
               } else {
                 shopProductPropertyOptions.push({
                   optionId: option.id,
                 });
               }
+            } else {
+              shopProductPropertyOptions.push({
+                optionId: option.id,
+              });
             }
           }
+          // }
         }
+        const uniqueShopProductPropertyOptions =
+          shopProductPropertyOptions.filter(
+            (v, i, a) => a.findIndex((t) => t.optionId === v.optionId) === i,
+          );
         // console.log('shopProductPropertyOptions', shopProductPropertyOptions);
-        return shopProductPropertyOptions;
+        // console.log(
+        //   'uniqueShopProductPropertyOptions',
+        //   uniqueShopProductPropertyOptions,
+        // );
+        // return shopProductPropertyOptions;
+        return uniqueShopProductPropertyOptions;
       }
     } catch (error) {
       console.log('Configurator Settings not found');
@@ -483,107 +495,110 @@ export class ProductsService {
     shopApiClient: any,
   ) {
     try {
-      const pimProducts = await this.getPimProducts();
+      // const pimProducts = await this.getPimProducts();
       const children = [];
-      for (const item of pimProducts) {
+      //NEW
+      const pimProductsFiltered = await pimApiClient.get(
+        `/Item?filters=[["Item","variant_of","=","${pimProduct.item_code}"]]&limit_start=0&limit_page_length=None`,
+      );
+      //NEW END
+
+      for (const item of pimProductsFiltered.data.data) {
         const variantPimProduct = await this.getPimProductByName(item.name);
-        if (variantPimProduct.variant_of === pimProduct.item_code) {
-          const shopProduct = await this.getShopProductByProductNumber(
+
+        const shopProduct = await this.getShopProductByProductNumber(
+          variantPimProduct.item_code,
+          shopApiClient,
+        );
+        const currencyId = (
+          await this.shopsService.getShopSalesChannelInfo(
+            pimShopId,
+            shopApiClient,
+          )
+        ).currencyId;
+        const taxId = (
+          await this.shopsService.getShopStandardTaxInfo(shopApiClient)
+        ).id;
+        let id = (
+          await this.getShopProductByProductNumber(
             variantPimProduct.item_code,
             shopApiClient,
-          );
-          const currencyId = (
-            await this.shopsService.getShopSalesChannelInfo(
-              pimShopId,
-              shopApiClient,
-            )
-          ).currencyId;
-          const taxId = (
-            await this.shopsService.getShopStandardTaxInfo(shopApiClient)
-          ).id;
-          let id = (
-            await this.getShopProductByProductNumber(
-              variantPimProduct.item_code,
-              shopApiClient,
-            )
-          ).id;
-          const parentExists = await this.getShopProductByProductNumber(
-            pimProduct.item_code,
+          )
+        ).id;
+        const parentExists = await this.getShopProductByProductNumber(
+          pimProduct.item_code,
+          shopApiClient,
+        );
+        if (id === null && parentExists.id !== null) {
+          const createdVariant = await this.createShopProductShell(
+            variantPimProduct,
+            taxId,
+            currencyId,
+            pimShopId,
             shopApiClient,
           );
-          if (id === null && parentExists.id !== null) {
-            const createdVariant = await this.createShopProductShell(
-              variantPimProduct,
-              taxId,
-              currencyId,
-              pimShopId,
-              shopApiClient,
-            );
-            id = createdVariant.id;
-          }
-          const child = {
-            id: id,
-            price: [
-              {
-                currencyId: currencyId,
-                gross: await this.getPimProductPrice(
-                  variantPimProduct,
-                  pimShopId,
-                ),
-                net:
-                  ((await this.getPimProductPrice(
-                    variantPimProduct,
-                    pimShopId,
-                  )) /
-                    119) *
-                  100,
-                linked: true,
-              },
-            ],
-            productNumber: variantPimProduct.name,
-            active: await this.getPimProductActive(
-              variantPimProduct,
-              pimShopId,
-            ),
-            // active: variantPimProduct.custom_active == 0 ? false : true,
-            manufacturerNumber: variantPimProduct.custom_manufacturer_number,
-            ean: variantPimProduct.custom_ean,
-            purchaseUnit: variantPimProduct.custom_purchase_unit,
-            // referenceUnit: variantPimProduct.custom_reference_unit,
-            markAsTopseller:
-              variantPimProduct.custom_mark_as_topseller == 0 ? false : true,
-            weight: variantPimProduct.custom_weight,
-            width: variantPimProduct.custom_width,
-            height: variantPimProduct.custom_height,
-            length: variantPimProduct.custom_length,
-            name: variantPimProduct.item_name,
-            keywords: variantPimProduct.custom_keywords,
-            description: await this.getPimProductDescription(
-              variantPimProduct,
-              pimShopId,
-            ),
-
-            // description: variantPimProduct.description,
-            // packUnit: variantPimProduct.custom_pack_unit,
-            // packUnitPlural: variantPimProduct.custom_pack_unit_plural,
-            customFields: {
-              // br_pim_modified: variantPimProduct.modified,
-            },
-            availableStock: variantPimProduct.custom_stock,
-            stock: variantPimProduct.custom_stock,
-            options:
-              await this.propertiesService.processPimProductPropertyOptions(
-                variantPimProduct,
-                shopApiClient,
-              ),
-            tags: await this.tagsService.processPimProductTags(
-              variantPimProduct,
-              shopProduct,
-              shopApiClient,
-            ),
-          };
-          children.push(child);
+          id = createdVariant.id;
         }
+        const child = {
+          id: id,
+          price: [
+            {
+              currencyId: currencyId,
+              gross: await this.getPimProductPrice(
+                variantPimProduct,
+                pimShopId,
+              ),
+              net:
+                ((await this.getPimProductPrice(variantPimProduct, pimShopId)) /
+                  119) *
+                100,
+              linked: true,
+            },
+          ],
+          productNumber: variantPimProduct.name,
+          active: await this.getPimProductActive(variantPimProduct, pimShopId),
+          // active: variantPimProduct.custom_active == 0 ? false : true,
+          manufacturerNumber: variantPimProduct.custom_manufacturer_number,
+          ean: variantPimProduct.custom_ean,
+          purchaseUnit: variantPimProduct.custom_purchase_unit,
+          // referenceUnit: variantPimProduct.custom_reference_unit,
+          markAsTopseller:
+            variantPimProduct.custom_mark_as_topseller == 0 ? false : true,
+          weight: variantPimProduct.custom_weight,
+          width: variantPimProduct.custom_width,
+          height: variantPimProduct.custom_height,
+          length: variantPimProduct.custom_length,
+          name: variantPimProduct.item_name,
+          keywords: variantPimProduct.custom_keywords,
+          description: await this.getPimProductDescription(
+            variantPimProduct,
+            pimShopId,
+          ),
+          // packUnit: variantPimProduct.custom_pack_unit,
+          // packUnitPlural: variantPimProduct.custom_pack_unit_plural,
+          customFields: {
+            br_pim_modified: variantPimProduct.modified,
+          },
+          availableStock: variantPimProduct.custom_stock,
+          stock: variantPimProduct.custom_stock,
+          options:
+            await this.propertiesService.processPimProductPropertyOptions(
+              variantPimProduct,
+              shopApiClient,
+            ),
+          tags: await this.tagsService.processPimProductTags(
+            variantPimProduct,
+            shopProduct,
+            shopApiClient,
+          ),
+        };
+        await this.mediaService.removeShopProductMedia(
+          shopProduct,
+          variantPimProduct,
+          pimShopId,
+          shopApiClient,
+        );
+        children.push(child);
       }
       return children;
     } catch (error) {
@@ -635,9 +650,31 @@ export class ProductsService {
         pimShopId,
         shopApiClient,
       );
+
       return media;
     } catch (error) {
       console.log('Media not found');
+      return null;
+    }
+  }
+  public async getFamilyProductNumbers(pimProduct: any) {
+    try {
+      let parentProduct: any = {};
+      if (pimProduct.variant_of) {
+        parentProduct = await this.getPimProductByName(pimProduct.variant_of);
+      } else {
+        parentProduct = pimProduct;
+      }
+
+      const response = await pimApiClient.get(
+        `Item?or_filters=[["Item","variant_of","=","${parentProduct.item_code}"],["Item","item_code","=","${parentProduct.item_code}"]]`,
+      );
+      const family = response.data.data;
+
+      const familyItemCodes = family.map((obj) => obj.name);
+      return familyItemCodes;
+    } catch (error) {
+      console.log('Family not found');
       return null;
     }
   }
@@ -685,14 +722,18 @@ export class ProductsService {
 
   public async getModifiedMainProducts(pimShopId: string, shopApiClient: any) {
     try {
-      const response = await pimApiClient.get(
-        '/Item?limit_start=0&limit_page_length=None',
+      // const response = await pimApiClient.get(
+      //   '/Item?limit_start=0&limit_page_length=None',
+      // );
+      // const pimProducts = response.data.data;
+
+      const pimProductsFiltered = await pimApiClient.get(
+        `/Item?filters=[["Item%20Shop","shopname","=","${pimShopId}"]]&limit_start=0&limit_page_length=None`,
       );
-      const pimProducts = response.data.data;
 
       const modifiedMainProducts: Set<string> = new Set();
 
-      for (const pimProduct of pimProducts) {
+      for (const pimProduct of pimProductsFiltered.data.data) {
         let pimProductComplete = await this.getPimProductByName(
           pimProduct.name,
         );
@@ -715,13 +756,13 @@ export class ProductsService {
           pimProductComplete.uuid =
             shopProduct !== undefined ? shopProduct.id : null;
 
-          const assignedShop = pimProductComplete.custom_item_shop_list.find(
-            (objekt) => objekt.shopname === pimShopId,
-          );
+          // const assignedShop = pimProductComplete.custom_item_shop_list.find(
+          //   (objekt) => objekt.shopname === pimShopId,
+          // );
 
-          if (assignedShop) {
-            modifiedMainProducts.add(pimProductComplete.name);
-          }
+          // if (assignedShop) {
+          modifiedMainProducts.add(pimProductComplete.name);
+          // }
         }
       }
       return Array.from(modifiedMainProducts);
@@ -751,11 +792,15 @@ export class ProductsService {
   public async getPimShopProducts(pimShopId: string, shopApiClient: any) {
     try {
       const pimShopProducts = [];
-      const response = await pimApiClient.get(
-        '/Item?limit_start=0&limit_page_length=None',
+      // const response = await pimApiClient.get(
+      //   '/Item?limit_start=0&limit_page_length=None',
+      // );
+      // const pimProducts = response.data.data;
+
+      const pimProductsFiltered = await pimApiClient.get(
+        `/Item?filters=[["Item%20Shop","shopname","=","${pimShopId}"]]&limit_start=0&limit_page_length=None`,
       );
-      const pimProducts = response.data.data;
-      for (const pimProduct of pimProducts) {
+      for (const pimProduct of pimProductsFiltered.data.data) {
         const pimProductComplete = await this.getPimProductByName(
           pimProduct.name,
         );
@@ -766,12 +811,12 @@ export class ProductsService {
 
         pimProductComplete.uuid =
           shopProduct != undefined ? shopProduct.id : null;
-        const assignedShop = pimProductComplete.custom_item_shop_list.some(
-          (objekt) => objekt.shopname === pimShopId,
-        );
-        if (assignedShop) {
-          pimShopProducts.push(pimProductComplete);
-        }
+        // const assignedShop = pimProductComplete.custom_item_shop_list.some(
+        //   (objekt) => objekt.shopname === pimShopId,
+        // );
+        // if (assignedShop) {
+        pimShopProducts.push(pimProductComplete);
+        // }
       }
 
       return pimShopProducts;

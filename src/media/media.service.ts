@@ -106,10 +106,9 @@ export class MediaService {
         media: [
           {
             id: productMediaId,
-
+            position: position,
             media: {
               id: mediaId,
-              position: position,
               mediaFolderId: mediaFolderId,
               title: mediaTitle,
             },
@@ -226,6 +225,7 @@ export class MediaService {
   ) {
     try {
       let pimProductMediaAssignments: any = {};
+
       for (const shop of pimProduct.custom_item_shop_list) {
         if (shop.shopname === pimShopId) {
           if (
@@ -304,11 +304,9 @@ export class MediaService {
           if (mediaData != null) {
             const mediaInfo = mediaData.id;
 
-            const imgIndex =
-              Object.keys(pimProductMediaAssignments).indexOf(
-                pimProductMediaAssignment,
-              ) + 1;
-
+            const imgIndex = Object.keys(pimProductMediaAssignments).indexOf(
+              pimProductMediaAssignment,
+            );
             const mediaFileName =
               pimProductMediaAssignments[pimProductMediaAssignment];
 
@@ -322,7 +320,6 @@ export class MediaService {
               shopApiClient,
             );
             shopProductMediaList.push(mediaInfo);
-
             continue;
           } else {
             if (
@@ -330,10 +327,9 @@ export class MediaService {
                 pimProductMediaAssignment,
               )
             ) {
-              const imgIndex =
-                Object.keys(pimProductMediaAssignments).indexOf(
-                  pimProductMediaAssignment,
-                ) + 1;
+              const imgIndex = Object.keys(pimProductMediaAssignments).indexOf(
+                pimProductMediaAssignment,
+              );
 
               const mediaFileName =
                 pimProductMediaAssignments[pimProductMediaAssignment];

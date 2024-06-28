@@ -13,6 +13,13 @@ export class SyncService {
 
   public async syncProductToShopById(pimProduct: any, pimShopId: string) {
     try {
+      // const productFamilyItemCodes =
+      //   await this.productsService.getFamilyProductNumbers(pimProduct);
+      // const completelyCreatedShopProductMedia = [];
+      // for (const productFamilyItemCode of productFamilyItemCodes) {
+      // const pimProduct = await this.productsService.getPimProductByName(
+      //   productFamilyItemCode,
+      // );
       const completelyCreatedShopProduct = { info: {}, media: {} };
       const shopApiClient =
         await this.shopsService.createShopApiClientByShopId(pimShopId);
@@ -26,9 +33,9 @@ export class SyncService {
           .map((shop) => shop.shop_sync_active)
           .pop() === 1 || false;
 
-      if (!isModified || !isSyncActive) {
-        return null;
-      }
+      // if (!isModified || !isSyncActive) {
+      //   return null;
+      // }
 
       if (pimProduct.hasOwnProperty('variant_of')) {
         const pimProductParent = await this.productsService.getPimProductByName(
@@ -56,6 +63,8 @@ export class SyncService {
           shopApiClient,
         );
       completelyCreatedShopProduct.media = createdShopProductMedia;
+      // completelyCreatedShopProductMedia.push(createdShopProductMedia);
+      // console.log('flo dotmedia', completelyCreatedShopProduct);
 
       return completelyCreatedShopProduct;
     } catch (error) {
