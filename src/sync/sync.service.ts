@@ -20,7 +20,10 @@ export class SyncService {
       // const pimProduct = await this.productsService.getPimProductByName(
       //   productFamilyItemCode,
       // );
-      const completelyCreatedShopProduct = { info: {}, media: {} };
+      const completelyCreatedShopProduct = {
+        info: {},
+        media: { created: {}, removed: {} },
+      };
       const shopApiClient =
         await this.shopsService.createShopApiClientByShopId(pimShopId);
       const isModified = await this.productsService.getModifiedProduct(
@@ -33,9 +36,9 @@ export class SyncService {
           .map((shop) => shop.shop_sync_active)
           .pop() === 1 || false;
 
-      // if (!isModified || !isSyncActive) {
-      //   return null;
-      // }
+      if (!isModified || !isSyncActive) {
+        return null;
+      }
 
       if (pimProduct.hasOwnProperty('variant_of')) {
         const pimProductParent = await this.productsService.getPimProductByName(
@@ -62,8 +65,16 @@ export class SyncService {
           pimShopId,
           shopApiClient,
         );
-      completelyCreatedShopProduct.media = createdShopProductMedia;
+      const removedShopProductMedia =
+        await this.productsService.removeShopProductMedia(
+          pimProduct,
+          pimShopId,
+          shopApiClient,
+        );
+      completelyCreatedShopProduct.media.created = createdShopProductMedia;
       // completelyCreatedShopProductMedia.push(createdShopProductMedia);
+      completelyCreatedShopProduct.media.removed = removedShopProductMedia;
+
       // console.log('flo dotmedia', completelyCreatedShopProduct);
 
       return completelyCreatedShopProduct;

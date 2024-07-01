@@ -273,10 +273,20 @@ export class MediaService {
           continue;
         }
         const productMediaId = await this.commonService.generateUUID(
+          pimProductMediaAssignments[pimProductMediaAssignment] +
+            pimProduct.item_code,
+        );
+
+        const mediaId = await this.commonService.generateUUID(
           pimProductMediaAssignments[pimProductMediaAssignment],
         );
 
-        const mediaId = await this.commonService.generateUUID(productMediaId);
+        // const productMediaId = await this.commonService.generateUUID(
+        //   pimProductMediaAssignments[pimProductMediaAssignment] +
+        //     pimProduct.item_code,
+        // );
+
+        // const mediaId = await this.commonService.generateUUID(productMediaId);
 
         const mediaData: any = await this.getShopMediaById(
           mediaId,
@@ -369,6 +379,8 @@ export class MediaService {
     shopApiClient: any,
   ) {
     try {
+      // console.log('remove wird ausgeführt');
+      // console.log('shopProduct', shopProduct.productNumber);
       if (!shopProduct) {
         return null;
       }
@@ -411,26 +423,49 @@ export class MediaService {
         shopProduct.id,
         shopApiClient,
       );
+      // console.log('productMediaData', productMediaData);
       const shopProductMediaIds = productMediaData.map((media) => media.id);
 
+      // Generiere UUIDs für alle Medien-URLs in pimProductMediaAssignments
       const pimProductMediaUrls = Object.values(
         pimProductMediaAssignments,
-      ).filter((value) => value != false && value !== undefined);
-
-      const pimProductMediaIds = pimProductMediaUrls.map(async (url) => {
-        const productMediaId = await this.commonService.generateUUID(url);
-        return productMediaId;
-      });
-
-      const deletedMediaIds = shopProductMediaIds.filter(
-        (media) => !pimProductMediaIds.includes(media),
+      ).filter(Boolean);
+      const pimProductMediaIds = await Promise.all(
+        pimProductMediaUrls.map((url) =>
+          this.commonService.generateUUID(url + pimProduct.item_code),
+        ),
       );
 
-      for (const deletedMediaId of deletedMediaIds) {
+      //TODO Entferne nur die Medien, die nicht in den generierten UUIDs enthalten sind UND nicht dem spezifischen Produkt zugeordnet sind:
+
+      const mediaIdsToRemove = shopProductMediaIds.filter(
+        (id) => !pimProductMediaIds.includes(id),
+      );
+
+      for (const mediaId of mediaIdsToRemove) {
         await shopApiClient.delete(
-          `/api/product/${shopProduct.id}/media/${deletedMediaId}`,
+          `/api/product/${shopProduct.id}/media/${mediaId}`,
         );
       }
+
+      // const pimProductMediaUrls = Object.values(
+      //   pimProductMediaAssignments,
+      // ).filter((value) => value != false && value !== undefined);
+
+      // const pimProductMediaIds = pimProductMediaUrls.map(async (url) => {
+      //   const productMediaId = await this.commonService.generateUUID(url);
+      //   return productMediaId;
+      // });
+
+      // const deletedMediaIds = shopProductMediaIds.filter(
+      //   (media) => !pimProductMediaIds.includes(media),
+      // );
+
+      // for (const deletedMediaId of deletedMediaIds) {
+      //   await shopApiClient.delete(
+      //     `/api/product/${shopProduct.id}/media/${deletedMediaId}`,
+      //   );
+      // }
     } catch (error) {
       console.log('Error removing media', error);
     }

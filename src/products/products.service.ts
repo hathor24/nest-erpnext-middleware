@@ -253,12 +253,12 @@ export class ProductsService {
         pimShopId,
         shopApiClient,
       );
-      await this.mediaService.removeShopProductMedia(
-        shopProduct,
-        pimProduct,
-        pimShopId,
-        shopApiClient,
-      );
+      // await this.mediaService.removeShopProductMedia(
+      //   shopProduct,
+      //   pimProduct,
+      //   pimShopId,
+      //   shopApiClient,
+      // );
       // console.log('data', data);
       // await this.removeShopProduct(shopProduct, pimProduct, shopApiClient);
       if (shopProduct !== undefined) {
@@ -592,12 +592,12 @@ export class ProductsService {
             shopApiClient,
           ),
         };
-        await this.mediaService.removeShopProductMedia(
-          shopProduct,
-          variantPimProduct,
-          pimShopId,
-          shopApiClient,
-        );
+        // await this.mediaService.removeShopProductMedia(
+        //   shopProduct,
+        //   variantPimProduct,
+        //   pimShopId,
+        //   shopApiClient,
+        // );
         children.push(child);
       }
       return children;
@@ -652,6 +652,27 @@ export class ProductsService {
       );
 
       return media;
+    } catch (error) {
+      console.log('Media not found');
+      return null;
+    }
+  }
+  public async removeShopProductMedia(
+    pimProduct: any,
+    pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const shopProduct = await this.getShopProductByProductNumber(
+        pimProduct.item_code,
+        shopApiClient,
+      );
+      await this.mediaService.removeShopProductMedia(
+        shopProduct,
+        pimProduct,
+        pimShopId,
+        shopApiClient,
+      );
     } catch (error) {
       console.log('Media not found');
       return null;
