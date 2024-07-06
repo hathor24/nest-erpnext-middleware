@@ -213,6 +213,7 @@ export class ProductsService {
           bioraum_benefit_field: pimProduct.custom_benefits,
           bioraum_short_desc:
             pimProduct.custom_metadescription_short_description,
+          bioraum_youtube_ids: pimProduct.custom_youtubeids,
         },
         availableStock: pimProduct.custom_stock,
         /* required */
@@ -268,7 +269,7 @@ export class ProductsService {
           data,
         );
         console.log(
-          `updated: ${pimProduct.item_name} - ${pimProduct.item_code}`,
+          `updated: ${pimProduct.item_name} - ${pimProduct.item_code} (${pimShopId})`,
         );
 
         const updatedProduct = response.data.data;
@@ -678,6 +679,52 @@ export class ProductsService {
       return null;
     }
   }
+
+  public async createShopProductFile(
+    pimProduct: any,
+    pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const shopProduct = await this.getShopProductByProductNumber(
+        pimProduct.item_code,
+        shopApiClient,
+      );
+      const media = await this.mediaService.processPimProductFile(
+        pimProduct,
+        shopProduct,
+        pimShopId,
+        shopApiClient,
+      );
+
+      return media;
+    } catch (error) {
+      console.log('Media not found');
+      return null;
+    }
+  }
+  public async removeShopProductFile(
+    pimProduct: any,
+    pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const shopProduct = await this.getShopProductByProductNumber(
+        pimProduct.item_code,
+        shopApiClient,
+      );
+      await this.mediaService.removeShopProductFile(
+        shopProduct,
+        pimProduct,
+        pimShopId,
+        shopApiClient,
+      );
+    } catch (error) {
+      console.log('Media not found');
+      return null;
+    }
+  }
+
   public async getFamilyProductNumbers(pimProduct: any) {
     try {
       let parentProduct: any = {};

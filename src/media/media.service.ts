@@ -84,10 +84,17 @@ export class MediaService {
     );
     return shopProductMediaFolder.id;
   }
+  public async getShopProductFileFolderId(shopApiClient: any) {
+    const response = await shopApiClient.get('/api/media-folder');
+    const shopFolders = response.data.data;
+    const shopProductMediaFolder = shopFolders.find(
+      (item) => item.name === 'Product Downloads',
+    );
+    return shopProductMediaFolder.id;
+  }
   public async getShopProductMedia(shopApiClient: any) {
     const response = await shopApiClient.get('/api/product-media');
     const productMedia = await response.data.data;
-    // throw 'end';
     return productMedia;
   }
 
@@ -124,6 +131,7 @@ export class MediaService {
   public async attachMediaRessourceToMediaObject(
     mediaObjectId: string,
     mediaRessourceUrl: string,
+    fileName: string,
     pimShopId: string,
   ) {
     try {
@@ -134,13 +142,78 @@ export class MediaService {
       const binaryFileData = Buffer.from(fileResponse.data, 'binary');
 
       const shopApiFileClient =
-        await this.createShopApiFileClientByShopId(pimShopId);
+        await this.createShopApiMediaClientByShopId(pimShopId);
       await shopApiFileClient.post(
         `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg`,
+        // `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg&fileName=${fileName}`,
         binaryFileData,
       );
     } catch (error) {
       throw error;
+      return null;
+    }
+  }
+  public async createFileObject(
+    fileId: string,
+    fileTitle: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const fileFolderId = await this.getShopProductFileFolderId(shopApiClient);
+      const response = await shopApiClient.post(`/api/media`, {
+        id: fileId,
+        mediaFolderId: fileFolderId,
+        title: fileTitle,
+      });
+      const createdObject = response;
+
+      return createdObject;
+    } catch (error) {}
+  }
+
+  public async createProductFileAssociation(
+    productId: string,
+    fileId: string,
+    fileNumber: string,
+    shopApiClient: any,
+  ) {
+    try {
+      const formattedKey = 'custom_fields_product_' + fileNumber;
+      const response = await shopApiClient.patch(`/api/product/${productId}`, {
+        customFields: {
+          [formattedKey]: fileId,
+        },
+      });
+      const createdAssociation = response.data;
+
+      return createdAssociation;
+    } catch (error) {}
+  }
+
+  public async attachFileRessourceToFileObject(
+    fileObjectId: string,
+    fileRessourceUrl: string,
+    pimShopId: string,
+  ) {
+    try {
+      const imgUrl = fileRessourceUrl.replace(/ /g, '%20');
+      const fileResponse = await pimFileClient.get(imgUrl, {
+        responseType: 'arraybuffer',
+      });
+      const binaryFileData = Buffer.from(fileResponse.data, 'binary');
+
+      const shopApiFileClient =
+        await this.createShopApiFileClientByShopId(pimShopId);
+
+      await shopApiFileClient.post(
+        `/api/_action/media/${fileObjectId}/upload?_response=basic&extension=pdf`,
+        binaryFileData,
+      );
+    } catch (error) {
+      console.log(
+        'Error attaching file ressource to file object',
+        error.response.data.errors[0],
+      );
       return null;
     }
   }
@@ -154,9 +227,9 @@ export class MediaService {
       const shopApiFileClient = axios.create({
         baseURL: shop_url,
         headers: {
-          'Content-Type': 'image/jpg',
+          'Content-Type': 'application/pdf',
           Authorization: `Bearer ${token}`,
-          extension: 'jpg',
+          extension: 'pdf',
         },
       });
 
@@ -169,6 +242,32 @@ export class MediaService {
   async createShopApiFileClientByShopId(pimShopId: string) {
     const shopApiData = await this.getShopApiDataByShopId(pimShopId);
     return this.createShopApiFileClient(shopApiData);
+  }
+
+  async createShopApiMediaClient(shopApiData: any): Promise<AxiosInstance> {
+    try {
+      const { shop_url, api_id, api_secret } = shopApiData;
+
+      const token = await this.getShopBearerToken(shop_url, api_id, api_secret);
+
+      const shopApiFileClient = axios.create({
+        baseURL: shop_url,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          Authorization: `Bearer ${token}`,
+          extension: 'jpg',
+        },
+      });
+
+      return shopApiFileClient;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async createShopApiMediaClientByShopId(pimShopId: string) {
+    const shopApiData = await this.getShopApiDataByShopId(pimShopId);
+    return this.createShopApiMediaClient(shopApiData);
   }
 
   async getShopApiClient(shopApiData: any): Promise<AxiosInstance> {
@@ -196,9 +295,11 @@ export class MediaService {
     clientId: string,
     clientSecret: string,
   ): Promise<string> {
+    const baseUrl = shopUrl.endsWith('/') ? shopUrl.slice(0, -1) : shopUrl;
+
     const options = {
       method: 'POST',
-      url: shopUrl + '/api/oauth/token',
+      url: baseUrl + '/api/oauth/token',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -281,13 +382,6 @@ export class MediaService {
           pimProductMediaAssignments[pimProductMediaAssignment],
         );
 
-        // const productMediaId = await this.commonService.generateUUID(
-        //   pimProductMediaAssignments[pimProductMediaAssignment] +
-        //     pimProduct.item_code,
-        // );
-
-        // const mediaId = await this.commonService.generateUUID(productMediaId);
-
         const mediaData: any = await this.getShopMediaById(
           mediaId,
           shopApiClient,
@@ -300,17 +394,9 @@ export class MediaService {
             shopApiClient,
           );
         }
-        // const responseProductMedia = await shopApiClient.get(`/api/media`);
 
-        // const productMedia = responseProductMedia.data.data;
-
-        // const productMediaIdExists = await productMedia.find(
-        //   async (item) => item.id == productMediaId,
-        // );
-        // if (productMediaIdExists) {
-        //   continue;
-        // }
         if (pimProductMediaAssignments[pimProductMediaAssignment] != null) {
+          let mediaTitle = '';
           if (mediaData != null) {
             const mediaInfo = mediaData.id;
 
@@ -320,7 +406,7 @@ export class MediaService {
             const mediaFileName =
               pimProductMediaAssignments[pimProductMediaAssignment];
 
-            const mediaTitle = mediaFileName.split('/').pop().split('.')[0];
+            mediaTitle = mediaFileName.split('/').pop().split('.')[0];
             await this.createProductMediaAssociation(
               productMediaId,
               shopProduct.id,
@@ -329,6 +415,7 @@ export class MediaService {
               imgIndex,
               shopApiClient,
             );
+
             shopProductMediaList.push(mediaInfo);
             continue;
           } else {
@@ -344,7 +431,7 @@ export class MediaService {
               const mediaFileName =
                 pimProductMediaAssignments[pimProductMediaAssignment];
 
-              const mediaTitle = mediaFileName.split('/').pop().split('.')[0];
+              mediaTitle = mediaFileName.split('/').pop().split('.')[0];
               await this.createProductMediaAssociation(
                 productMediaId,
                 shopProduct.id,
@@ -360,6 +447,7 @@ export class MediaService {
             await this.attachMediaRessourceToMediaObject(
               mediaId,
               pimProductMediaAssignments[pimProductMediaAssignment],
+              mediaTitle,
               pimShopId,
             );
           }
@@ -379,8 +467,6 @@ export class MediaService {
     shopApiClient: any,
   ) {
     try {
-      // console.log('remove wird ausgeführt');
-      // console.log('shopProduct', shopProduct.productNumber);
       if (!shopProduct) {
         return null;
       }
@@ -423,10 +509,8 @@ export class MediaService {
         shopProduct.id,
         shopApiClient,
       );
-      // console.log('productMediaData', productMediaData);
       const shopProductMediaIds = productMediaData.map((media) => media.id);
 
-      // Generiere UUIDs für alle Medien-URLs in pimProductMediaAssignments
       const pimProductMediaUrls = Object.values(
         pimProductMediaAssignments,
       ).filter(Boolean);
@@ -447,25 +531,6 @@ export class MediaService {
           `/api/product/${shopProduct.id}/media/${mediaId}`,
         );
       }
-
-      // const pimProductMediaUrls = Object.values(
-      //   pimProductMediaAssignments,
-      // ).filter((value) => value != false && value !== undefined);
-
-      // const pimProductMediaIds = pimProductMediaUrls.map(async (url) => {
-      //   const productMediaId = await this.commonService.generateUUID(url);
-      //   return productMediaId;
-      // });
-
-      // const deletedMediaIds = shopProductMediaIds.filter(
-      //   (media) => !pimProductMediaIds.includes(media),
-      // );
-
-      // for (const deletedMediaId of deletedMediaIds) {
-      //   await shopApiClient.delete(
-      //     `/api/product/${shopProduct.id}/media/${deletedMediaId}`,
-      //   );
-      // }
     } catch (error) {
       console.log('Error removing media', error);
     }
@@ -480,6 +545,202 @@ export class MediaService {
       return mediaData;
     } catch (error) {
       throw error;
+    }
+  }
+
+  public async getFileFromProduct(productId: string, shopApiClient: any) {
+    try {
+      const response = await shopApiClient.get(`/api/product/${productId}`);
+      const customFields = await response.data.data.customFields;
+
+      const productFiles = Object.keys(customFields)
+        .filter((key) => {
+          const value = customFields[key];
+          return (
+            key.startsWith('custom_fields_product_file') &&
+            value !== null &&
+            value !== '' &&
+            value !== undefined
+          );
+        })
+        .reduce((obj, key) => {
+          obj[key] = customFields[key];
+          return obj;
+        }, {});
+
+      return productFiles;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  public async processPimProductFile(
+    pimProduct: any,
+    shopProduct: any,
+    pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      let pimProductFileAssignments: any = {};
+      let pimProductFileLabelAssignments: any = {};
+
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          pimProductFileAssignments = {
+            file01: pimProduct.custom_file01,
+            file02: pimProduct.custom_file02,
+            file03: pimProduct.custom_file03,
+            file04: pimProduct.custom_file04,
+            file05: pimProduct.custom_file05,
+            file06: pimProduct.custom_file06,
+          };
+          pimProductFileLabelAssignments = {
+            file01: pimProduct.custom_label_file01,
+            file02: pimProduct.custom_label_file02,
+            file03: pimProduct.custom_label_file03,
+            file04: pimProduct.custom_label_file04,
+            file05: pimProduct.custom_label_file05,
+            file06: pimProduct.custom_label_file06,
+          };
+        }
+      }
+
+      const shopProductFileList: any = [];
+
+      const allValuesNull = Object.values(pimProductFileAssignments).every(
+        (value) => value == false,
+      );
+
+      if (allValuesNull) {
+        return null;
+      }
+      for (const pimProductFileAssignment in pimProductFileAssignments) {
+        if (!pimProductFileAssignments[pimProductFileAssignment]) {
+          continue;
+        }
+
+        const fileId = await this.commonService.generateUUID(
+          pimProductFileAssignments[pimProductFileAssignment],
+        );
+
+        const fileData: any = await this.getShopMediaById(
+          fileId,
+          shopApiClient,
+        );
+
+        if (pimProductFileAssignments[pimProductFileAssignment] != null) {
+          if (fileData != null) {
+            const fileInfo = fileData.id;
+            const fileLabel =
+              pimProductFileLabelAssignments[pimProductFileAssignment];
+
+            await this.createFileObject(fileId, fileLabel, shopApiClient);
+            await this.createProductFileAssociation(
+              shopProduct.id,
+              fileId,
+              pimProductFileAssignment,
+              shopApiClient,
+            );
+            shopProductFileList.push(fileInfo);
+            continue;
+          } else {
+            if (
+              pimProductFileAssignments.hasOwnProperty(pimProductFileAssignment)
+            ) {
+              const fileLabel =
+                pimProductFileLabelAssignments[pimProductFileAssignment];
+
+              await this.createFileObject(fileId, fileLabel, shopApiClient);
+              await this.createProductFileAssociation(
+                shopProduct.id,
+                fileId,
+                pimProductFileAssignment,
+                shopApiClient,
+              );
+              shopProductFileList.push(fileId);
+            }
+
+            await this.attachFileRessourceToFileObject(
+              fileId,
+              pimProductFileAssignments[pimProductFileAssignment],
+              pimShopId,
+            );
+          }
+        }
+      }
+      return shopProductFileList;
+    } catch (error) {
+      console.log('Error processing file', error.response.data.errors[0]);
+      return null;
+    }
+  }
+
+  public async removeShopProductFile(
+    shopProduct: any,
+    pimProduct: any,
+    pimShopId: string,
+    shopApiClient: any,
+  ) {
+    try {
+      if (!shopProduct) {
+        return null;
+      }
+
+      let pimProductFileAssignments: any = {};
+      for (const shop of pimProduct.custom_item_shop_list) {
+        if (shop.shopname === pimShopId) {
+          pimProductFileAssignments = {
+            file01: pimProduct.custom_file01,
+            file02: pimProduct.custom_file02,
+            file03: pimProduct.custom_file03,
+            file04: pimProduct.custom_file04,
+            file05: pimProduct.custom_file05,
+            file06: pimProduct.custom_file06,
+          };
+          break;
+        }
+      }
+
+      const productFileData = await this.getFileFromProduct(
+        shopProduct.id,
+        shopApiClient,
+      );
+
+      const updatedPimProductFileAssignments = {};
+
+      for (const [key, value] of Object.entries(pimProductFileAssignments)) {
+        if (typeof value === 'string' && value.trim() !== '') {
+          const uuid = await this.commonService.generateUUID(value);
+          updatedPimProductFileAssignments[key] = uuid;
+        } else {
+          updatedPimProductFileAssignments[key] = value;
+        }
+      }
+
+      const mismatchedFiles = {};
+
+      for (const [key, value] of Object.entries(productFileData)) {
+        const fileNumber = key.replace('custom_fields_product_file', '');
+        const pimValue = pimProductFileAssignments[`file${fileNumber}`];
+
+        if (
+          value !== pimValue &&
+          (pimValue === '' || pimValue === undefined || pimValue === null)
+        ) {
+          mismatchedFiles[key] = '';
+        }
+      }
+
+      if (
+        Object.keys(mismatchedFiles).length !== 0 &&
+        mismatchedFiles.constructor === Object
+      ) {
+        await shopApiClient.patch(`/api/product/${shopProduct.id}`, {
+          customFields: mismatchedFiles,
+        });
+      }
+    } catch (error) {
+      console.log('Error removing file', error.response.data.errors[0]);
     }
   }
 }

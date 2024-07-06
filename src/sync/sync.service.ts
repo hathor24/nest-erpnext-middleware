@@ -13,28 +13,29 @@ export class SyncService {
 
   public async syncProductToShopById(pimProduct: any, pimShopId: string) {
     try {
-      // const productFamilyItemCodes =
-      //   await this.productsService.getFamilyProductNumbers(pimProduct);
-      // const completelyCreatedShopProductMedia = [];
-      // for (const productFamilyItemCode of productFamilyItemCodes) {
-      // const pimProduct = await this.productsService.getPimProductByName(
-      //   productFamilyItemCode,
-      // );
       const completelyCreatedShopProduct = {
         info: {},
         media: { created: {}, removed: {} },
+        files: { created: {}, removed: {} },
       };
+
       const shopApiClient =
         await this.shopsService.createShopApiClientByShopId(pimShopId);
+
       const isModified = await this.productsService.getModifiedProduct(
         pimProduct,
         shopApiClient,
       );
+
       const isSyncActive =
         pimProduct.custom_item_shop_list
           .filter((shop) => shop.shopname === pimShopId)
           .map((shop) => shop.shop_sync_active)
           .pop() === 1 || false;
+
+      // if (!isSyncActive) {
+      //   return null;
+      // }
 
       if (!isModified || !isSyncActive) {
         return null;
@@ -58,7 +59,7 @@ export class SyncService {
         );
         completelyCreatedShopProduct.info = createdShopProduct;
       }
-
+      // Image upload
       const createdShopProductMedia =
         await this.productsService.createShopProductMedia(
           pimProduct,
@@ -72,13 +73,29 @@ export class SyncService {
           shopApiClient,
         );
       completelyCreatedShopProduct.media.created = createdShopProductMedia;
-      // completelyCreatedShopProductMedia.push(createdShopProductMedia);
       completelyCreatedShopProduct.media.removed = removedShopProductMedia;
+
+      // File upload
+      const createdShopProductFile =
+        await this.productsService.createShopProductFile(
+          pimProduct,
+          pimShopId,
+          shopApiClient,
+        );
+      const removedShopProductFile =
+        await this.productsService.removeShopProductFile(
+          pimProduct,
+          pimShopId,
+          shopApiClient,
+        );
+      completelyCreatedShopProduct.files.created = createdShopProductFile;
+      completelyCreatedShopProduct.files.removed = removedShopProductFile;
 
       // console.log('flo dotmedia', completelyCreatedShopProduct);
 
       return completelyCreatedShopProduct;
     } catch (error) {
+      console.log('Error in syncProductToShopById', error.response.data);
       throw error;
     }
   }

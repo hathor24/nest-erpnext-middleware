@@ -16,9 +16,11 @@ export class CommonService {
     clientId: string,
     clientSecret: string,
   ): Promise<string> {
+    const baseUrl = shopUrl.endsWith('/') ? shopUrl.slice(0, -1) : shopUrl;
+
     const options = {
       method: 'POST',
-      url: shopUrl + '/api/oauth/token',
+      url: baseUrl + '/api/oauth/token',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -31,9 +33,15 @@ export class CommonService {
     };
 
     try {
-      const { data } = await axios.request(options);
+      // const { data } = await axios.request(options);
+
+      const { data } = await axios(options);
+      // console.log('flo dotmedia', data);
       return data.access_token;
     } catch (error) {
+      console.log('Error in getShopBearerToken', error.response.data);
+
+      // console.log('Error in getShopBearerToken', error.response.data);
       throw error;
     }
   }

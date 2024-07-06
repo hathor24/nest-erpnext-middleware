@@ -8,6 +8,7 @@ export class ShopsService {
 
   async createShopApiClientByShopId(pimShopId: string) {
     const shopApiData = await this.getShopApiDataByShopId(pimShopId);
+
     return this.commonService.createShopApiClient(shopApiData);
   }
 

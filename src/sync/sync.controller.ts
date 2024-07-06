@@ -14,7 +14,6 @@ export class SyncController {
   async syncProduct(@Param('productNumber') productNumber: string) {
     const pimProduct =
       await this.productService.getPimProductByName(productNumber);
-
     const pimProductShopsIds =
       await this.productService.getPimProductShops(pimProduct);
 
