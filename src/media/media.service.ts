@@ -140,12 +140,17 @@ export class MediaService {
         responseType: 'arraybuffer',
       });
       const binaryFileData = Buffer.from(fileResponse.data, 'binary');
+      const webSafeFileName = fileName
+        .trim() // Entfernt führende und nachfolgende Leerzeichen
+        .replace(/\s+/g, '_') // Ersetzt Leerzeichen durch Unterstriche
+        .replace(/[\/:?#&=]/g, '') // Entfernt problematische Zeichen
+        .replace(/[^a-zA-Z0-9_\-]/g, ''); // Entfernt alle nicht-alphanumerischen Zeichen außer Unterstrich und Bindestrich
 
       const shopApiFileClient =
         await this.createShopApiMediaClientByShopId(pimShopId);
       await shopApiFileClient.post(
-        `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg`,
-        // `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg&fileName=${fileName}`,
+        // `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg`,
+        `/api/_action/media/${mediaObjectId}/upload?_response=basic&extension=jpg&fileName=${webSafeFileName}`,
         binaryFileData,
       );
     } catch (error) {
@@ -156,6 +161,7 @@ export class MediaService {
   public async createFileObject(
     fileId: string,
     fileTitle: string,
+    pimProductName: string,
     shopApiClient: any,
   ) {
     try {
@@ -163,7 +169,7 @@ export class MediaService {
       const response = await shopApiClient.post(`/api/media`, {
         id: fileId,
         mediaFolderId: fileFolderId,
-        title: fileTitle,
+        title: fileTitle + ' - ' + pimProductName,
       });
       const createdObject = response;
 
@@ -192,6 +198,8 @@ export class MediaService {
 
   public async attachFileRessourceToFileObject(
     fileObjectId: string,
+    fileTitle: string,
+    pimProductName: string,
     fileRessourceUrl: string,
     pimShopId: string,
   ) {
@@ -205,8 +213,17 @@ export class MediaService {
       const shopApiFileClient =
         await this.createShopApiFileClientByShopId(pimShopId);
 
+      const fileName = fileTitle + '-' + pimProductName;
+      const webSafeFileName = fileName
+        .trim() // Entfernt führende und nachfolgende Leerzeichen
+        .replace(/\s+/g, '_') // Ersetzt Leerzeichen durch Unterstriche
+        .replace(/[\/:?#&=]/g, '') // Entfernt problematische Zeichen
+        .replace(/[^a-zA-Z0-9_\-]/g, ''); // Entfernt alle nicht-alphanumerischen Zeichen außer Unterstrich und Bindestrich
+
       await shopApiFileClient.post(
-        `/api/_action/media/${fileObjectId}/upload?_response=basic&extension=pdf`,
+        // `/api/_action/media/${fileObjectId}/upload?_response=basic&extension=pdf`,
+        `/api/_action/media/${fileObjectId}/upload?_response=basic&extension=pdf&fileName=${webSafeFileName}`,
+
         binaryFileData,
       );
     } catch (error) {
@@ -634,7 +651,12 @@ export class MediaService {
             const fileLabel =
               pimProductFileLabelAssignments[pimProductFileAssignment];
 
-            await this.createFileObject(fileId, fileLabel, shopApiClient);
+            await this.createFileObject(
+              fileId,
+              fileLabel,
+              pimProduct.item_name,
+              shopApiClient,
+            );
             await this.createProductFileAssociation(
               shopProduct.id,
               fileId,
@@ -644,13 +666,20 @@ export class MediaService {
             shopProductFileList.push(fileInfo);
             continue;
           } else {
+            const fileLabel =
+              pimProductFileLabelAssignments[pimProductFileAssignment];
             if (
               pimProductFileAssignments.hasOwnProperty(pimProductFileAssignment)
             ) {
-              const fileLabel =
-                pimProductFileLabelAssignments[pimProductFileAssignment];
+              // const fileLabel =
+              //   pimProductFileLabelAssignments[pimProductFileAssignment];
 
-              await this.createFileObject(fileId, fileLabel, shopApiClient);
+              await this.createFileObject(
+                fileId,
+                fileLabel,
+                pimProduct.item_name,
+                shopApiClient,
+              );
               await this.createProductFileAssociation(
                 shopProduct.id,
                 fileId,
@@ -662,6 +691,8 @@ export class MediaService {
 
             await this.attachFileRessourceToFileObject(
               fileId,
+              fileLabel,
+              pimProduct.item_name,
               pimProductFileAssignments[pimProductFileAssignment],
               pimShopId,
             );

@@ -654,7 +654,7 @@ export class ProductsService {
 
       return media;
     } catch (error) {
-      console.log('Media not found');
+      console.log('Media not found - createShopProductMedia');
       return null;
     }
   }
@@ -675,7 +675,7 @@ export class ProductsService {
         shopApiClient,
       );
     } catch (error) {
-      console.log('Media not found');
+      console.log('Media not found - removeShopProductMedia');
       return null;
     }
   }
@@ -699,7 +699,7 @@ export class ProductsService {
 
       return media;
     } catch (error) {
-      console.log('Media not found');
+      console.log('File not found - createShopProductFile');
       return null;
     }
   }
@@ -720,7 +720,7 @@ export class ProductsService {
         shopApiClient,
       );
     } catch (error) {
-      console.log('Media not found');
+      console.log('File not found - removeShopProductFile');
       return null;
     }
   }
