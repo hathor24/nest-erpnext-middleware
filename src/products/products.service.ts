@@ -282,7 +282,7 @@ export class ProductsService {
           data,
         );
         console.log(
-          `created: ${pimProduct.item_name} - ${pimProduct.item_code}`,
+          `created: ${pimProduct.item_name} - ${pimProduct.item_code} (${pimShopId})`,
         );
 
         const createdProduct = response.data.data;
@@ -291,7 +291,7 @@ export class ProductsService {
       }
     } catch (error) {
       console.log(
-        `Creation Error of Product: ${pimProduct.item_name} - ${pimProduct.item_code}`,
+        `Creation Error of Product: ${pimProduct.item_name} - ${pimProduct.item_code} (${pimShopId})`,
         error.response.data,
       );
     }
