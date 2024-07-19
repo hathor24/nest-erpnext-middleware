@@ -36,29 +36,35 @@ export class SyncService {
       // if (!isSyncActive) {
       //   return null;
       // }
-
       if (!isModified || !isSyncActive) {
         return null;
       }
 
-      if (pimProduct.hasOwnProperty('variant_of')) {
-        const pimProductParent = await this.productsService.getPimProductByName(
-          pimProduct.variant_of,
-        );
-        const createdShopProduct = await this.productsService.createShopProduct(
-          pimProductParent,
-          pimShopId,
-          shopApiClient,
-        );
-        completelyCreatedShopProduct.info = createdShopProduct;
-      } else {
-        const createdShopProduct = await this.productsService.createShopProduct(
-          pimProduct,
-          pimShopId,
-          shopApiClient,
-        );
-        completelyCreatedShopProduct.info = createdShopProduct;
-      }
+      // if (pimProduct.hasOwnProperty('variant_of')) {
+      //   const pimProductParent = await this.productsService.getPimProductByName(
+      //     pimProduct.variant_of,
+      //   );
+      //   const createdShopProduct = await this.productsService.createShopProduct(
+      //     pimProductParent,
+      //     pimShopId,
+      //     shopApiClient,
+      //   );
+      //   completelyCreatedShopProduct.info = createdShopProduct;
+      // } else {
+      //   const createdShopProduct = await this.productsService.createShopProduct(
+      //     pimProduct,
+      //     pimShopId,
+      //     shopApiClient,
+      //   );
+      //   completelyCreatedShopProduct.info = createdShopProduct;
+      // }
+      const createdShopProduct = await this.productsService.createShopProduct(
+        pimProduct,
+        pimShopId,
+        shopApiClient,
+      );
+      completelyCreatedShopProduct.info = createdShopProduct;
+
       // Image upload
       const createdShopProductMedia =
         await this.productsService.createShopProductMedia(
@@ -120,6 +126,117 @@ export class SyncService {
       }
 
       return completelyCreatedShopProducts;
+    } catch (error) {
+      throw error;
+    }
+  }
+  public async syncStockByShop(pimShopId: string) {
+    try {
+      const shopApiClient =
+        await this.shopsService.createShopApiClientByShopId(pimShopId);
+
+      const pimShopProducts = await this.productsService.getPimShopProducts(
+        pimShopId,
+        shopApiClient,
+      );
+
+      const shopProducts = await shopApiClient.post(`/api/search/product`, {
+        includes: {
+          product: ['id', 'productNumber'],
+        },
+      });
+
+      const productPayload = async () => {
+        const payload = [];
+        for (const pimShopProduct of pimShopProducts) {
+          for (const shopProduct of shopProducts.data.data) {
+            if (pimShopProduct.item_code === shopProduct.productNumber) {
+              const product = {
+                id: shopProduct.id,
+                stock: pimShopProduct.custom_stock,
+              };
+              payload.push(product);
+            }
+          }
+        }
+        return payload;
+      };
+
+      const pimShopStock = {
+        'shop-stock-updates': {
+          entity: 'product',
+          action: 'upsert',
+          payload: await productPayload(),
+        },
+      };
+
+      const updatedShopStock = await shopApiClient.post(
+        `/api/_action/sync`,
+        pimShopStock,
+      );
+
+      return updatedShopStock;
+    } catch (error) {
+      throw error;
+    }
+  }
+  public async syncShopPrices(pimShopId: string) {
+    try {
+      const shopApiClient =
+        await this.shopsService.createShopApiClientByShopId(pimShopId);
+
+      const pimShopProducts = await this.productsService.getPimShopProducts(
+        pimShopId,
+        shopApiClient,
+      );
+
+      const shopProducts = await shopApiClient.post(`/api/search/product`, {
+        includes: {
+          product: ['id', 'productNumber'],
+        },
+      });
+
+      const productPayload = async () => {
+        const payload = [];
+        for (const pimShopProduct of pimShopProducts) {
+          for (const shopProduct of shopProducts.data.data) {
+            if (pimShopProduct.item_code === shopProduct.productNumber) {
+              const price = await this.productsService.getPimProductPrice(
+                pimShopProduct,
+                pimShopId,
+              );
+              const product = {
+                id: shopProduct.id,
+                price: [
+                  {
+                    currencyId: shopProduct.price[0].currencyId,
+                    gross: price,
+                    net: (price / 119) * 100,
+                    linked: true,
+                  },
+                ],
+              };
+              payload.push(product);
+            }
+          }
+        }
+        return payload;
+      };
+
+      const pimShopPrices = {
+        'shop-price-updates': {
+          entity: 'product',
+          action: 'upsert',
+          payload: await productPayload(),
+        },
+      };
+
+      const updatedShopPrices = await shopApiClient.post(
+        `/api/_action/sync`,
+        pimShopPrices,
+      );
+
+      return updatedShopPrices;
     } catch (error) {
       throw error;
     }

@@ -138,6 +138,7 @@ export class ProductsService {
       const shopProduct = allShopProductsData.find(
         (obj) => obj.productNumber === pimProduct.item_code,
       );
+      const price = await this.getPimProductPrice(pimProduct, pimShopId);
 
       const data = {
         parentId: (
@@ -170,10 +171,8 @@ export class ProductsService {
                 shopApiClient,
               )
             ).currencyId,
-            gross: await this.getPimProductPrice(pimProduct, pimShopId),
-            net:
-              ((await this.getPimProductPrice(pimProduct, pimShopId)) / 119) *
-              100,
+            gross: price,
+            net: (price / 119) * 100,
             linked: true,
           },
         ],
@@ -540,7 +539,8 @@ export class ProductsService {
           );
           id = createdVariant.id;
         }
-        const child = {
+
+        const child: any = {
           id: id,
           price: [
             {
@@ -577,9 +577,7 @@ export class ProductsService {
           ),
           // packUnit: variantPimProduct.custom_pack_unit,
           // packUnitPlural: variantPimProduct.custom_pack_unit_plural,
-          customFields: {
-            br_pim_modified: variantPimProduct.modified,
-          },
+          customFields: {},
           availableStock: variantPimProduct.custom_stock,
           stock: variantPimProduct.custom_stock,
           options:
@@ -593,6 +591,11 @@ export class ProductsService {
             shopApiClient,
           ),
         };
+        // console.log('variantPimProduct', variantPimProduct);
+        // console.log('pimProduct', pimProduct);
+        if (variantPimProduct.item_code === pimProduct.item_code) {
+          child.customFields.br_pim_modified = variantPimProduct.modified;
+        }
         // await this.mediaService.removeShopProductMedia(
         //   shopProduct,
         //   variantPimProduct,
@@ -601,6 +604,7 @@ export class ProductsService {
         // );
         children.push(child);
       }
+      // console.log('children', children);
       return children;
     } catch (error) {
       console.log('Children not found');
@@ -776,7 +780,8 @@ export class ProductsService {
         if (
           (shopProduct == undefined ||
             pimProductComplete.modified !==
-              shopProduct?.customFields?.br_pim_modified) &&
+              shopProduct?.customFields?.br_pim_modified ||
+            shopProduct?.customFields?.br_pim_modified == false) &&
           assignedShop
         ) {
           modifiedProducts.push(pimProductComplete.name);
@@ -847,7 +852,8 @@ export class ProductsService {
       const shopProduct = response.data.data[0];
       if (
         shopProduct === undefined ||
-        pimProduct.modified !== shopProduct?.customFields?.br_pim_modified
+        pimProduct.modified !== shopProduct?.customFields?.br_pim_modified ||
+        shopProduct?.customFields?.br_pim_modified == false
       ) {
         return true;
       }
@@ -865,26 +871,36 @@ export class ProductsService {
       // );
       // const pimProducts = response.data.data;
 
-      const pimProductsFiltered = await pimApiClient.get(
+      const pimProductsFilteredByShop = await pimApiClient.get(
         `/Item?filters=[["Item%20Shop","shopname","=","${pimShopId}"]]&limit_start=0&limit_page_length=None`,
       );
-      for (const pimProduct of pimProductsFiltered.data.data) {
+      const shopProducts = await shopApiClient.post(`/api/search/product`, {
+        includes: {
+          product: ['id', 'productNumber'],
+        },
+      });
+      // console.log('shopProducts', shopProducts);
+
+      // console.log('pimProductsFiltered', pimProductsFilteredByShop);
+      for (const pimProduct of pimProductsFilteredByShop.data.data) {
         const pimProductComplete = await this.getPimProductByName(
           pimProduct.name,
         );
-        const response = await shopApiClient.get(
-          `/api/product?filter[productNumber]=${pimProduct.name}`,
-        );
-        const shopProduct = response.data.data[0];
 
-        pimProductComplete.uuid =
-          shopProduct != undefined ? shopProduct.id : null;
-        // const assignedShop = pimProductComplete.custom_item_shop_list.some(
-        //   (objekt) => objekt.shopname === pimShopId,
+        for (const shopProduct of shopProducts.data.data) {
+          if (pimProductComplete.item_code === shopProduct.productNumber) {
+            pimProductComplete.uuid = shopProduct.id;
+          }
+        }
+        // const response = await shopApiClient.get(
+        //   `/api/product?filter[productNumber]=${pimProduct.name}`,
         // );
-        // if (assignedShop) {
+        // const shopProduct = response.data.data[0];
+
+        // pimProductComplete.uuid =
+        //   shopProduct != undefined ? shopProduct.id : null;
+
         pimShopProducts.push(pimProductComplete);
-        // }
       }
 
       return pimShopProducts;

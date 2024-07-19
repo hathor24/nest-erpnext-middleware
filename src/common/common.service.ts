@@ -39,7 +39,10 @@ export class CommonService {
       // console.log('flo dotmedia', data);
       return data.access_token;
     } catch (error) {
-      console.log('Error in getShopBearerToken', error.response.data);
+      console.log(
+        `Error in getShopBearerToken: Shop - ${shopUrl}`,
+        error.response.data,
+      );
 
       // console.log('Error in getShopBearerToken', error.response.data);
       throw error;
