@@ -82,6 +82,20 @@ export class SyncController {
       throw error;
     }
   }
+  @Get('/shop/:shopId/stock')
+  async syncShopStock(@Param('shopId') shopId: string) {
+    try {
+      await this.syncService.syncShopStock(shopId);
+      const response = {
+        status_code: HttpStatus.OK,
+        process: 'Shop prices synchronization processes have been initiated',
+      };
+
+      return response;
+    } catch (error) {
+      throw error;
+    }
+  }
 
   @Get('/shop/:shopId/:productNumber')
   async syncProductToShopById(
@@ -124,7 +138,7 @@ export class SyncController {
       (shop) => shop.name,
     );
     const syncPromises = pimShopIds.map((shopId) =>
-      this.syncService.syncStockByShop(shopId),
+      this.syncService.syncShopStock(shopId),
     );
 
     await Promise.all(syncPromises);

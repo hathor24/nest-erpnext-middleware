@@ -130,7 +130,7 @@ export class SyncService {
       throw error;
     }
   }
-  public async syncStockByShop(pimShopId: string) {
+  public async syncShopStock(pimShopId: string) {
     try {
       const shopApiClient =
         await this.shopsService.createShopApiClientByShopId(pimShopId);
