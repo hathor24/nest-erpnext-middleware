@@ -610,6 +610,8 @@ export class MediaService {
             file04: pimProduct.custom_file04,
             file05: pimProduct.custom_file05,
             file06: pimProduct.custom_file06,
+            file07: pimProduct.custom_file07,
+            file08: pimProduct.custom_file08,
           };
           pimProductFileLabelAssignments = {
             file01: pimProduct.custom_label_file01,
@@ -618,6 +620,8 @@ export class MediaService {
             file04: pimProduct.custom_label_file04,
             file05: pimProduct.custom_label_file05,
             file06: pimProduct.custom_label_file06,
+            file07: pimProduct.custom_label_file07,
+            file08: pimProduct.custom_label_file08,
           };
         }
       }
@@ -727,6 +731,8 @@ export class MediaService {
             file04: pimProduct.custom_file04,
             file05: pimProduct.custom_file05,
             file06: pimProduct.custom_file06,
+            file07: pimProduct.custom_file07,
+            file08: pimProduct.custom_file08,
           };
           break;
         }
