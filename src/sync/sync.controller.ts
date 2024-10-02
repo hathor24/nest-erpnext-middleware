@@ -88,7 +88,7 @@ export class SyncController {
       await this.syncService.syncShopStock(shopId);
       const response = {
         status_code: HttpStatus.OK,
-        process: 'Shop prices synchronization processes have been initiated',
+        process: 'Shop stock synchronization processes have been initiated',
       };
 
       return response;
@@ -137,11 +137,12 @@ export class SyncController {
     const pimShopIds = (await this.shopsService.getShopsFromPim()).map(
       (shop) => shop.name,
     );
+
     const syncPromises = pimShopIds.map((shopId) =>
       this.syncService.syncShopStock(shopId),
     );
-
     await Promise.all(syncPromises);
+
     return 'All stock synchronization processes have been initiated';
   }
 }

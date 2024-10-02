@@ -169,7 +169,9 @@ export class SyncService {
           payload: await productPayload(),
         },
       };
-
+      if (pimShopStock['shop-stock-updates'].payload.length === 0) {
+        return null;
+      }
       const updatedShopStock = await shopApiClient.post(
         `/api/_action/sync`,
         pimShopStock,
@@ -177,6 +179,7 @@ export class SyncService {
 
       return updatedShopStock;
     } catch (error) {
+      console.log('Error in syncShopStock', error.response.data);
       throw error;
     }
   }
@@ -192,7 +195,7 @@ export class SyncService {
 
       const shopProducts = await shopApiClient.post(`/api/search/product`, {
         includes: {
-          product: ['id', 'productNumber'],
+          product: ['id', 'productNumber', 'price'],
         },
       });
 
